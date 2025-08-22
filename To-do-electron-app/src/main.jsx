@@ -1,7 +1,7 @@
 import './main.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
+import App from './app.jsx';
 import './styles/globals.css';
 
 // Set dark theme immediately to prevent flash
