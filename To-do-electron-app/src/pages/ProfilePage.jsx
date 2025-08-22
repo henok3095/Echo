@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuthStore } from '../store/index.jsx';
-import { Save, Settings } from 'lucide-react';
+import { Save, Settings, Lock, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { db, storage } from '../api/supabase.js';
 
@@ -283,6 +283,30 @@ export default function ProfilePage() {
       [setting]: value
     }));
   };
+
+  // Quick toggle for public/private from the top of the profile page
+  const handleTogglePublic = async () => {
+    try {
+      const newValue = !editProfile.is_public;
+      // Optimistic UI update
+      setEditProfile(prev => ({ ...prev, is_public: newValue }));
+      setIsLoading(true);
+
+      const payload = { ...editProfile, is_public: newValue, id: editProfile.id || user?.id };
+      const { error } = await db.updateProfile(payload);
+      if (error) throw error;
+
+      await updateProfile(payload);
+      toast.success(newValue ? 'Profile set to Public' : 'Profile set to Private');
+    } catch (error) {
+      console.error('Error updating visibility:', error);
+      toast.error('Failed to update visibility');
+      // Revert optimistic update
+      setEditProfile(prev => ({ ...prev, is_public: !prev.is_public }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -366,6 +390,41 @@ export default function ProfilePage() {
         handleFollowToggle={handleFollowToggle}
         isLoading={isLoading}
       />
+
+      {/* Quick Visibility Toggle (shown only on own profile) */}
+      {isViewingOwnProfile && (
+        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between">
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
+              {editProfile.is_public ? (
+                <Globe className="w-4 h-4 text-blue-600" />
+              ) : (
+                <Lock className="w-4 h-4 text-gray-500" />
+              )}
+              Profile Visibility
+            </h4>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {editProfile.is_public
+                ? 'Your profile is visible to everyone'
+                : 'Your profile is private and only visible to you'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleTogglePublic}
+            disabled={isLoading}
+            className={`${editProfile.is_public ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60`}
+            role="switch"
+            aria-checked={editProfile.is_public}
+          >
+            <span className="sr-only">Toggle public profile</span>
+            <span
+              aria-hidden="true"
+              className={`${editProfile.is_public ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+            />
+          </button>
+        </div>
+      )}
 
       {/* Profile Stats */}
       <ProfileStats
