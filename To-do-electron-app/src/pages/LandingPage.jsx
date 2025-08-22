@@ -129,22 +129,6 @@ export default function LandingPage() {
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </div>
-
-              {/* Stats */}
-              <div className="flex justify-center lg:justify-start gap-8 pt-8">
-                <div className="text-center">
-                  <div className="text-3xl font-black text-gray-900 dark:text-white">10K+</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Tasks Completed</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-black text-gray-900 dark:text-white">5K+</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Movies Tracked</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-black text-gray-900 dark:text-white">1M+</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Minutes Listened</div>
-                </div>
-              </div>
             </div>
 
             {/* Right Column - Feature Showcase */}

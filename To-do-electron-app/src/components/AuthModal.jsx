@@ -186,7 +186,7 @@ export default function AuthModal({ isOpen, onClose }) {
                     placeholder="Username"
                     autoComplete="off"
                   />
-                  <label htmlFor="username" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-fuchsia-500 dark:peer-focus:text-fuchsia-400 bg-white/80 dark:bg-gray-900/80 px-1 rounded">
+                  <label htmlFor="username" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-fuchsia-500 dark:peer-focus:text-fuchsia-400 peer-[:not(:placeholder-shown)]:-top-4 peer-[:not(:placeholder-shown)]:text-xs bg-white/80 dark:bg-gray-900/80 px-1 rounded">
                     Username
                   </label>
                   {errors.username && (
@@ -203,7 +203,7 @@ export default function AuthModal({ isOpen, onClose }) {
                   placeholder="Email"
                   autoComplete="off"
                 />
-                <label htmlFor="email" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-blue-500 dark:peer-focus:text-blue-400 bg-white/80 dark:bg-gray-900/80 px-1 rounded">
+                <label htmlFor="email" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-blue-500 dark:peer-focus:text-blue-400 peer-[:not(:placeholder-shown)]:-top-4 peer-[:not(:placeholder-shown)]:text-xs bg-white/80 dark:bg-gray-900/80 px-1 rounded">
                   Email
                 </label>
                 {errors.email && (
@@ -219,7 +219,7 @@ export default function AuthModal({ isOpen, onClose }) {
                   placeholder="Password"
                   autoComplete="off"
                 />
-                <label htmlFor="password" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-emerald-500 dark:peer-focus:text-emerald-400 bg-white/80 dark:bg-gray-900/80 px-1 rounded">
+                <label htmlFor="password" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-emerald-500 dark:peer-focus:text-emerald-400 peer-[:not(:placeholder-shown)]:-top-4 peer-[:not(:placeholder-shown)]:text-xs bg-white/80 dark:bg-gray-900/80 px-1 rounded">
                   Password
                 </label>
                 <button
@@ -244,7 +244,7 @@ export default function AuthModal({ isOpen, onClose }) {
                     placeholder="Confirm Password"
                     autoComplete="off"
                   />
-                  <label htmlFor="confirmPassword" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-fuchsia-500 dark:peer-focus:text-fuchsia-400 bg-white/80 dark:bg-gray-900/80 px-1 rounded">
+                  <label htmlFor="confirmPassword" className="absolute left-3 top-2 text-gray-500 dark:text-gray-400 text-sm pointer-events-none transition-all peer-placeholder-shown:top-2 peer-placeholder-shown:text-sm peer-focus:-top-4 peer-focus:text-xs peer-focus:text-fuchsia-500 dark:peer-focus:text-fuchsia-400 peer-[:not(:placeholder-shown)]:-top-4 peer-[:not(:placeholder-shown)]:text-xs bg-white/80 dark:bg-gray-900/80 px-1 rounded">
                     Confirm Password
                   </label>
                   <button
