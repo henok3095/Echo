@@ -15,11 +15,9 @@ module.exports = async (req, res) => {
     const endpoint = type === 'movie' ? 'search/movie' : type === 'tv' ? 'search/tv' : 'search/multi';
     const url = `https://api.themoviedb.org/3/${endpoint}?api_key=${encodeURIComponent(apiKey)}&query=${encodeURIComponent(q)}`;
 
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if (!resp.ok) {
-      return res.status(resp.status).json({ error: data?.status_message || 'TMDB error', details: data });
-    }
+    const axios = require('axios');
+    const resp = await axios.get(url);
+    const data = resp.data;
 
     // Filter only movie/tv for multi to match client expectations
     if (endpoint === 'search/multi' && Array.isArray(data?.results)) {
@@ -29,6 +27,8 @@ module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ error: 'Proxy error', message: err?.message || String(err) });
+    const status = err?.response?.status || 500;
+    const details = err?.response?.data || null;
+    return res.status(status).json({ error: 'Proxy error', message: err?.message || String(err), details });
   }
 };
