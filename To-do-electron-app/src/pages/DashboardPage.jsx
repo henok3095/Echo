@@ -11,7 +11,6 @@ import {
   Target,
   Zap,
   Heart,
-  Award,
   ArrowRight,
   Sparkles,
   Activity,
@@ -490,21 +489,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Motivational Footer */}
-        <Card className="p-6 bg-gradient-to-r from-blue-50 via-purple-50 to-pink-50 dark:from-blue-900/10 dark:via-purple-900/10 dark:to-pink-900/10 border-0">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <Award className="w-6 h-6 text-yellow-500" />
-              <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Keep up the great work!
-              </h3>
-              <Award className="w-6 h-6 text-yellow-500" />
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">
-              You're building great habits. Every small step counts towards your goals.
-            </p>
-          </div>
-        </Card>
+        
       </div>
     </div>
   );
