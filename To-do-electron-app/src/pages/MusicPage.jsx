@@ -459,8 +459,8 @@ export default function MusicPage() {
             <p className="text-base md:text-lg text-[color:var(--text-med)]">
               Track your listening, stats and library with style
             </p>
-            <NowPlayingCard nowPlaying={nowPlaying} />
-            <VisualizerStrip playing={nowPlaying?.isPlaying} />
+            {/* <NowPlayingCard nowPlaying={nowPlaying} /> */}
+            {/* <VisualizerStrip playing={nowPlaying?.isPlaying} /> */}
           </div>
         </div>
 
