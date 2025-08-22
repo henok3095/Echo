@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens and animations for Echo Music page */
+@layer base {
+  :root {
+    --bg-0: #0B0C10;
+    --bg-1: #0F1116;
+    --bg-2: rgba(255,255,255,0.06);
+    --glass-stroke: rgba(255,255,255,0.12);
+
+    --neon-pink: #FF7AE6;
+    --neon-orange: #FFB86C;
+    --neon-red: #FF4D6D;
+    --neon-cyan: #64F2FF;
+
+    --text-hi: #F5F7FB;
+    --text-med: #C6CBD9;
+    --text-dim: #98A1B3;
+
+    --border: rgba(255,255,255,0.08);
+    --shadow: rgba(0,0,0,0.45);
+    --success: #36D399;
+  }
+
+  html, body, #root {
+    background-color: var(--bg-0);
+    color: var(--text-hi);
+  }
+}
+
+@layer components {
+  .glass {
+    @apply backdrop-blur-xl rounded-2xl border border-white/10 bg-white/5 shadow-[0_10px_30px_var(--shadow)];
+  }
+  .neon-edge {
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 20px 1px rgba(255,122,230,0.15);
+  }
+  .title-gradient {
+    background-image: linear-gradient(90deg, var(--neon-pink), var(--neon-orange), var(--neon-red));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+@layer utilities {
+  .radial-vignette::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(100% 60% at 50% 0%, rgba(255,122,230,0.15), transparent 60%);
+    pointer-events: none;
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .preserve-3d { transform-style: preserve-3d; }
+}
+
+/* Keyframes */
+@keyframes blobFloat {
+  0% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(10px,-8px,0) scale(1.05); }
+  100% { transform: translate3d(0,0,0) scale(1); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spinSlow { to { transform: rotate(360deg); } }
+@keyframes ringPulse {
+  0% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.04); opacity: 0.3; }
+  100% { transform: scale(1); opacity: 0.6; }
+}
+@keyframes eqPulse {
+  0%, 100% { transform: scaleY(0.15); }
+  50% { transform: scaleY(0.9); }
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Extra animations for Now Playing UI */
+@keyframes spinLinear {
+  to { transform: rotate(360deg); }
+}
+@keyframes vinylSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes textGlow {
+  from { text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 0 9px #22e6ff, 0 0 12px #22e6ff; }
+  to { text-shadow: 0 0 6px #fff, 0 0 12px #fff, 0 0 18px #22e6ff, 0 0 24px #22e6ff; }
+}
+@keyframes boxGlow {
+  from { box-shadow: 0 0 3px rgba(255,255,255,0.7); }
+  to { box-shadow: 0 0 12px rgba(34,230,255,0.9); }
+}
+@keyframes progressSweep {
+  0% { width: 20%; }
+  50% { width: 70%; }
+  100% { width: 35%; }
+}
+
+.animate-spin-slow { animation: spinLinear 10s linear infinite; }
+.animate-vinyl-spin { animation: vinylSpin 3s linear infinite; }
+.animate-text-glow { animation: textGlow 2s ease-in-out infinite alternate; }
+.animate-glow { animation: boxGlow 1.5s ease-in-out infinite alternate; }
+.progress-indeterminate { animation: progressSweep 1.8s ease-in-out infinite; }
+
+/* Microinteraction keyframes */
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translate3d(0, 16px, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes scaleIn {
+  0% { opacity: 0; transform: scale(0.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Animation helpers */
+.animate-blob { animation: blobFloat 28s ease-in-out infinite alternate; will-change: transform; }
+.animate-blob-delay { animation: blobFloat 36s ease-in-out infinite alternate; animation-delay: 4s; will-change: transform; }
+.animate-blob-delay-2 { animation: blobFloat 42s ease-in-out infinite alternate; animation-delay: 8s; will-change: transform; }
+.animate-shimmer { background-size: 200% 100%; animation: shimmer 2s linear infinite; }
+.spin-slow { animation: spinSlow 18s linear infinite; }
+.spin-medium { animation: spinSlow 9s linear infinite; }
+.pulse-ring { animation: ringPulse 2.4s ease-in-out infinite; }
+
+/* Equalizer bars */
+.eq-bar { transform-origin: bottom; animation: eqPulse 1.2s ease-in-out infinite; will-change: transform; }
+.eq-bar:nth-child(odd) { animation-duration: 1.4s; }
+.eq-bar:nth-child(3n) { animation-duration: 1.1s; }
+.eq-bar:nth-child(4n) { animation-duration: 1.6s; }
+
+/* Marquee */
+.marquee {
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+.marquee > .track {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 12s linear infinite;
+}
+.marquee:hover > .track { animation-play-state: paused; }
+
+/* Reveal helpers */
+.reveal { opacity: 0; transform: translate3d(0, 14px, 0); transition: opacity 500ms ease, transform 500ms ease; }
+.reveal.is-visible { opacity: 1; transform: translate3d(0, 0, 0); }
+.animate-fade-up { animation: fadeUp 600ms ease both; }
+.animate-scale-in { animation: scaleIn 450ms ease both; }
+
+/* Card hover transforms */
+.card-tilt { transition: transform 250ms ease, box-shadow 250ms ease, filter 250ms ease; }
+.card-tilt:hover { transform: translateY(-4px) scale(1.01); filter: saturate(1.08); }
+.card-tilt:active { transform: translateY(-1px) scale(0.995); }
+.card-focus { outline: none; box-shadow: 0 0 0 0 rgba(0,0,0,0); }
+.card-focus:focus-visible { box-shadow: 0 0 0 3px rgba(255,122,230,0.35); }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-blob-delay,
+  .animate-blob-delay-2,
+  .spin-slow,
+  .spin-medium,
+  .pulse-ring,
+  .eq-bar,
+  .marquee > .track,
+  .animate-fade-up,
+  .animate-scale-in,
+  .animate-spin-slow,
+  .animate-vinyl-spin,
+  .animate-text-glow,
+  .animate-glow,
+  .progress-indeterminate { animation: none !important; }
+}
+
+/* Confetti (for Books Tab celebrations) */
+@keyframes confettiFall {
+  0% { transform: translate3d(0, -120%, 0) rotate(0deg); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translate3d(0, 120vh, 0) rotate(720deg); opacity: 0; }
+}
+.confetti-piece {
+  position: absolute;
+  top: -10vh;
+  border-radius: 2px;
+  animation-name: confettiFall;
+  animation-timing-function: ease-in;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 0 4px rgba(255,255,255,0.25));
+}

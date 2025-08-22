@@ -1,0 +1,62 @@
+# --- General OS/Editor ---
+.DS_Store
+Thumbs.db
+*.log
+logs/
+*.tmp
+*.swp
+*.swo
+.vscode/
+.idea/
+*.iml
+
+# --- Env/Secrets (never commit) ---
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+
+# --- Node/Electron/React (Vite) ---
+**/node_modules/
+**/dist/
+**/coverage/
+.nyc_output/
+
+# Electron build artifacts
+release/
+out/
+*.dmg
+*.exe
+*.AppImage
+*.snap
+*.deb
+*.rpm
+
+# --- Supabase ---
+backend/supabase/.temp/
+backend/supabase/.branches/
+backend/supabase/.supabase/**
+
+# --- Flutter/Android/iOS ---
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.metadata
+**/.gradle/
+**/local.properties
+**/Pods/
+**/DerivedData/
+
+# --- Misc caches ---
+.cache/
+.tmp/
+.temp/
+
+# --- Generated lockfiles (keep where appropriate) ---
+# Note: We keep package-lock.json/yarn.lock/pnpm-lock.yaml and pubspec.lock committed for apps.
+
+# --- Exclude Flutter mobile app for now ---
+echo_mobile/

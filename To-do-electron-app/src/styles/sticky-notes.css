@@ -1,0 +1,66 @@
+/* Sticky Note Card Styles for MemoriesPage */
+.sticky-note-card {
+  background: linear-gradient(135deg, #ffe066 90%, #ffd43b 100%);
+  border-radius: 18px 22px 16px 20px/20px 18px 22px 16px;
+  box-shadow: 0 8px 32px 0 rgba(204,180,70,0.20), 0 4px 16px 0 rgba(0,0,0,0.14);
+  border: 2.5px solid #e5c100;
+  min-height: 170px;
+  transform: rotate(-1deg);
+  transition: box-shadow 0.2s, transform 0.2s;
+  position: relative;
+  overflow: visible;
+}
+.sticky-note-card:before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: -16px; left: 28px;
+  width: 46px; height: 22px;
+  background: repeating-linear-gradient(-45deg, #f7e48c, #f7e48c 6px, #ffe066 6px, #ffe066 12px);
+  border-radius: 6px 12px 6px 12px;
+  box-shadow: 0 2px 8px 0 rgba(204,180,70,0.15);
+  z-index: 2;
+  opacity: 0.85;
+}
+.sticky-note-title {
+  font-family: 'Indie Flower', 'Comic Sans MS', 'Shadows Into Light', cursive, sans-serif;
+  font-size: 1.13rem;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+.sticky-note-grid {
+  /* Add a subtle background pattern for nostalgia */
+  background: repeating-linear-gradient(90deg, #fffbe6 0px, #fffbe6 19px, #ffe066 20px, #ffe066 21px);
+  border-radius: 16px;
+  padding: 10px 0 24px 0;
+}
+
+.sticky-note-card:after {
+  content: "";
+  display: block;
+  position: absolute;
+  bottom: -12px; right: 18px;
+  width: 38px; height: 16px;
+  background: linear-gradient(120deg, #ffe066 60%, #ffd43b 100%);
+  border-radius: 0 0 18px 18px;
+  box-shadow: 0 8px 16px 0 rgba(204,180,70,0.18);
+  opacity: 0.7;
+  transform: rotate(5deg);
+}
+@media (prefers-color-scheme: dark) {
+  .sticky-note-card {
+    background: linear-gradient(135deg, #6b5c00 90%, #ffe066 100%);
+    border: 2.5px solid #ffe066;
+    color: #fffbe6;
+  }
+  .sticky-note-title {
+    color: #ffe066 !important;
+  }
+  .sticky-note-grid {
+    background: #23220a url('data:image/svg+xml;utf8,<svg width="100%25" height="100%25" xmlns="http://www.w3.org/2000/svg"><rect fill="%2323220a" width="100%25" height="100%25"/><rect fill="none" stroke="%235c4f00" stroke-width="1.5" width="100%25" height="100%25"/></svg>');
+  }
+  .sticky-note-card:before {
+    background: repeating-linear-gradient(-45deg, #bfa900, #bfa900 8px, #ffe066 8px, #ffe066 16px);
+border: 1.5px solid #ffe066;
+  }
+}

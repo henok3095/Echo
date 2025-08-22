@@ -1,0 +1,59 @@
+/* Global styles to prevent white flash */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure dark theme is applied immediately */
+:root {
+  color-scheme: dark;
+}
+
+/* Font loading optimization */
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  background-color: #111827;
+  color: #f9fafb;
+  font-display: swap;
+}
+
+html.dark {
+  background-color: #111827;
+  color: #f9fafb;
+}
+
+html.light {
+  background-color: #ffffff;
+  color: #111827;
+}
+
+body {
+  font-family: inherit;
+  background-color: inherit;
+  color: inherit;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-feature-settings: 'kern' 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Loading state styles */
+#app {
+  min-height: 100vh;
+  background-color: inherit;
+  font-family: inherit;
+}
+
+/* Prevent flash of unstyled content */
+.flash-prevent {
+  visibility: hidden;
+}
+
+.flash-prevent.loaded {
+  visibility: visible;
+}
+
+/* Ensure consistent font loading */
+* {
+  font-family: inherit;
+}
