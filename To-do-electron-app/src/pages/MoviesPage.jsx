@@ -402,18 +402,11 @@ export default function MoviesPage() {
               <span className="font-medium">Watch Diary</span>
             </button>
             <button
-              onClick={() => handleAddMediaType('movie')}
+              onClick={() => { setShowAddModal(true); setShowDropup(false); }}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
             >
               <Film className="w-5 h-5" />
-              <span className="font-medium">Add Movie</span>
-            </button>
-            <button
-              onClick={() => handleAddMediaType('tv')}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-            >
-              <Tv className="w-5 h-5" />
-              <span className="font-medium">Add TV Show</span>
+              <span className="font-medium">Add</span>
             </button>
           </div>
         </div>
@@ -635,7 +628,7 @@ export default function MoviesPage() {
               onClick={() => setShowAddModal(true)}
               className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 hover:scale-105"
             >
-              Add Your First Movie
+              Add Your First Item
             </button>
           </div>
         )}
