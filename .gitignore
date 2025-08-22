@@ -60,3 +60,4 @@ backend/supabase/.supabase/**
 
 # --- Exclude Flutter mobile app for now ---
 echo_mobile/
+
