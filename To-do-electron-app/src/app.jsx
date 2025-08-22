@@ -18,7 +18,7 @@ import LandingPage from "./pages/LandingPage";
 import AuthModal from "./components/AuthModal";
 import { supabase, db } from './api/supabase.js';
 import ProfilePage from "./pages/ProfilePage";
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import AboutPage from "./pages/AboutPage";
 
 function AppLayout() {
@@ -33,6 +33,7 @@ function AppLayout() {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(true); // banner visibility
   const [showNotificationsPopup, setShowNotificationsPopup] = useState(false);
+  const [followingIds, setFollowingIds] = useState(new Set());
   
   const { user, signOut } = useAuthStore();
 
@@ -74,7 +75,6 @@ function AppLayout() {
             const followerId = payload.new?.follower_id;
             let followerName = 'Someone';
             if (followerId) {
-              const { db } = require('./api/supabase.js');
               const { data } = await db.getUserProfile(followerId);
               followerName = data?.username || followerName;
             }
@@ -83,6 +83,8 @@ function AppLayout() {
               { id, type: 'follow', message: `${followerName} started following you` },
               ...prev,
             ].slice(0, 5));
+            // Toast popup
+            toast.success(`${followerName} followed you`);
           } catch (e) {
             // Fallback simple message
             const id = `${payload.commit_timestamp}-${payload.new?.follower_id}`;
@@ -90,6 +92,7 @@ function AppLayout() {
               { id, type: 'follow', message: `You have a new follower` },
               ...prev,
             ].slice(0, 5));
+            toast.success('You have a new follower');
           }
         }
       )
@@ -99,6 +102,77 @@ function AppLayout() {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  // Load following list when user logs in (for activity notifications)
+  useEffect(() => {
+    let isMounted = true;
+    if (!user) {
+      setFollowingIds(new Set());
+      return;
+    }
+    (async () => {
+      try {
+        const { data, error } = await db.fetchUserFollowing(user.id);
+        if (!error && isMounted) {
+          const ids = new Set((data || []).map(r => r.following_id));
+          setFollowingIds(ids);
+        }
+      } catch (_) {}
+    })();
+    return () => { isMounted = false };
+  }, [user]);
+
+  // Realtime activities from people you follow
+  useEffect(() => {
+    if (!user) return;
+    if (!supabase) return;
+
+    const actChannel = supabase
+      .channel('activities-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activities' },
+        async (payload) => {
+          try {
+            const activity = payload.new;
+            if (!activity) return;
+            // Ignore my own activities
+            if (activity.user_id === user.id) return;
+            // Only notify if I follow the author
+            if (!followingIds.has(activity.user_id)) return;
+
+            // Get author name
+            let author = 'Someone you follow';
+            try {
+              const { data } = await db.getUserProfile(activity.user_id);
+              if (data?.username) author = data.username;
+            } catch (_) {}
+
+            const type = String(activity.type || 'activity');
+            const pretty = (
+              type === 'task_completed' ? 'completed a task' :
+              type === 'movie_finished' ? 'finished a movie' :
+              type === 'movie_rated' ? `rated a movie ${activity?.payload?.rating ?? ''}` :
+              type === 'journal_created' ? 'wrote a journal entry' :
+              'posted a new activity'
+            );
+            const id = `${payload.commit_timestamp}-${activity.id || activity.user_id}`;
+            const msg = `${author} ${pretty}`.trim();
+
+            setNotifications((prev) => [
+              { id, type: 'activity', message: msg },
+              ...prev,
+            ].slice(0, 5));
+            toast(msg);
+          } catch (_) {}
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(actChannel);
+    };
+  }, [user, followingIds]);
 
   // Show setup screen if no environment variables
   if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {

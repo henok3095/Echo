@@ -87,6 +87,7 @@ export default function Sidebar({ collapsed }) {
           className={collapsed ? "w-8 h-8 mx-auto" : "w-10 h-10"} 
           showText={!collapsed}
           textClassName="text-2xl font-bold"
+          preferredSrc="/dist/logo2.png"
         />
       </div>
 

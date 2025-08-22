@@ -2,10 +2,13 @@ const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 
 function createWindow() {
+  const iconPath = app.isPackaged
+    ? path.join(__dirname, 'dist', 'logo.png')
+    : path.join(__dirname, 'public', 'logo.png');
   const win = new BrowserWindow({
     width: 1000,
     height: 800,
-    icon: path.join(__dirname, 'assets', 'icon.png'), // Custom app icon
+    icon: iconPath, // App icon
     webPreferences: {
       // Remove or update preload if not used
       // preload: path.join(__dirname, 'preload.js'),

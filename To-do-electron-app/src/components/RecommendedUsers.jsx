@@ -95,14 +95,17 @@ export default function RecommendedUsers({ currentUserId, onFollow }) {
     setShowSearch(false);
   };
 
-  const UserCard = ({ user, showFollowButton = true }) => (
-    <div onClick={() => navigate(`/profile/${encodeURIComponent(user.username || user.id)}`)} role="button" tabIndex={0} onKeyDown={(e)=>{ if(e.key==='Enter'){ navigate(`/profile/${encodeURIComponent(user.username || user.id)}`)} }} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
+  const UserCard = ({ user, showFollowButton = true }) => {
+    const name = user.username || (user.id ? `user-${String(user.id).slice(0,6)}` : 'User');
+    const to = `/profile/${encodeURIComponent(user.username || user.id)}`;
+    return (
+    <div onClick={() => navigate(to)} role="button" tabIndex={0} onKeyDown={(e)=>{ if(e.key==='Enter'){ navigate(to)} }} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
       <div className="flex items-center space-x-3">
         <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center overflow-hidden">
           {user.avatar_url ? (
             <img 
               src={user.avatar_url} 
-              alt={user.username || 'User'} 
+              alt={name} 
               className="w-full h-full object-cover"
             />
           ) : (
@@ -111,7 +114,7 @@ export default function RecommendedUsers({ currentUserId, onFollow }) {
         </div>
         <div>
           <h4 className="font-medium text-gray-900 dark:text-white">
-            {user.username || 'Unknown User'}
+            {name}
           </h4>
           {user.bio && (
             <p className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-48">
@@ -134,7 +137,7 @@ export default function RecommendedUsers({ currentUserId, onFollow }) {
         </button>
       )}
     </div>
-  );
+  ); };
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">

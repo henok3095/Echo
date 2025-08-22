@@ -18,7 +18,7 @@ export default function Header({ username = "User", onMenuClick, onToggleTheme, 
         </button>
         <div className="hidden sm:block">
           <div className="flex items-center gap-2 mb-1">
-            <Logo className="w-6 h-6" showText={true} textClassName="text-lg font-bold" />
+            <Logo className="w-6 h-6" showText={true} textClassName="text-lg font-bold" preferredSrc="/dist/logo2.png" />
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}

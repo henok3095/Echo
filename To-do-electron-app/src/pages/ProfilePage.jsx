@@ -84,21 +84,20 @@ export default function ProfilePage() {
       setIsViewingOwnProfile(isOwnProfile);
       
       if (!isOwnProfile) {
-        // Fetch the user's profile by username or ID
-        const { data: profileData, error } = await db.fetchUserProfile(profileToView);
-        if (error) throw error;
+        // Fetch the user's profile by username or ID using the store so userProfile is set
+        const viewed = await fetchUserProfile(profileToView);
         
-        // Fetch followers and following
+        // Fetch followers and following for the viewed profile
         const [followersRes, followingRes] = await Promise.all([
-          db.fetchUserFollowers(profileData.id),
-          db.fetchUserFollowing(profileData.id)
+          db.fetchUserFollowers(viewed.id),
+          db.fetchUserFollowing(viewed.id)
         ]);
         
         setFollowers(followersRes.data || []);
         setFollowing(followingRes.data || []);
         
         // Load profile stats for other users
-        await loadProfileStats(profileData.id);
+        await loadProfileStats(viewed.id);
       } else {
         // For own profile, use the existing profile data
         setEditProfile({
@@ -441,19 +440,21 @@ export default function ProfilePage() {
         setEditProfile={setEditProfile}
       />
 
-      {/* Who to follow / Recommendations */}
-      <RecommendedUsers
-        currentUserId={user?.id}
-        onFollow={async () => {
-          // Refresh following to reflect the new connection
-          try {
-            const { data } = await db.fetchUserFollowing(user?.id);
-            setFollowing(data || []);
-          } catch (e) {
-            // noop
-          }
-        }}
-      />
+      {/* Who to follow / Recommendations (only on own profile) */}
+      {isViewingOwnProfile && (
+        <RecommendedUsers
+          currentUserId={user?.id}
+          onFollow={async () => {
+            // Refresh following to reflect the new connection
+            try {
+              const { data } = await db.fetchUserFollowing(user?.id);
+              setFollowing(data || []);
+            } catch (e) {
+              // noop
+            }
+          }}
+        />
+      )}
 
       {/* Edit Profile Form */}
       {isEditing && (
@@ -577,6 +578,7 @@ export default function ProfilePage() {
         followers={followers}
         following={following}
         formatNumber={formatNumber}
+        listOwnerId={isViewingOwnProfile ? user?.id : userProfile?.id}
       />
 
 
