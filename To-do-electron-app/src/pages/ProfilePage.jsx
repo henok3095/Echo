@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuthStore } from '../store/index.jsx';
 import { Save, Settings, Lock, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { db, storage } from '../api/supabase.js';
+import { db, storage, auth } from '../api/supabase.js';
 
 // Import the new components
 import ProfileHeader from '../components/ProfileHeader.jsx';
@@ -11,7 +11,8 @@ import ProfileStats from '../components/ProfileStats.jsx';
 import ProfileTabs from '../components/ProfileTabs.jsx';
 import FollowersModal from '../components/FollowersModal.jsx';
 import VisibilitySettings from '../components/VisibilitySettings.jsx';
-import RecommendedUsers from '../components/RecommendedUsers.jsx';
+import AvatarCropModal from '../components/AvatarCropModal.jsx';
+import EditProfileModal from '../components/EditProfileModal.jsx';
 
 // Simplified: removed in-page suggestions/search to declutter profile
 
@@ -35,9 +36,26 @@ export default function ProfilePage() {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [showVisibilitySettings, setShowVisibilitySettings] = useState(false);
+  const settingsPanelRef = useRef(null);
+  const settingsCloseRef = useRef(null);
+  // Avatar cropper state
+  const [showCropper, setShowCropper] = useState(false);
+  const [cropSrc, setCropSrc] = useState(null); // Object URL of selected image
+  const [pendingFile, setPendingFile] = useState(null); // Original File to derive name
   const [isLoading, setIsLoading] = useState(false);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const { error } = await auth.signInWithGoogle();
+      if (error) throw error;
+      // Redirect handled by Supabase; session restored on return
+    } catch (err) {
+      console.error('Google sign-in failed:', err);
+      toast.error(err.message || 'Google sign-in failed');
+    }
+  };
   
   // Additional state for Supabase data
   const [profileStats, setProfileStats] = useState({
@@ -276,6 +294,43 @@ export default function ProfilePage() {
     setShowVisibilitySettings(!showVisibilitySettings);
   };
 
+  // Keyboard a11y for Settings modal
+  useEffect(() => {
+    if (!showVisibilitySettings) return;
+    settingsCloseRef.current?.focus();
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowVisibilitySettings(false);
+        return;
+      }
+      if (e.key === 'Tab') {
+        const container = settingsPanelRef.current;
+        if (!container) return;
+        const focusables = container.querySelectorAll(
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [showVisibilitySettings]);
+
   const handleVisibilityChange = (setting, value) => {
     setEditProfile(prev => ({
       ...prev,
@@ -306,79 +361,97 @@ export default function ProfilePage() {
       setIsLoading(false);
     }
   };
-  
-  const handleAvatarUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select an image file');
-      return;
-    }
-    
-    // Validate file size (5MB limit)
-    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
-    if (file.size > maxSize) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-    
-    // Validate image dimensions (optional)
-    const img = new Image();
-    img.onload = async () => {
-      if (img.width > 2000 || img.height > 2000) {
-        toast.error('Image dimensions must be less than 2000x2000 pixels');
+
+  // Avatar upload handler -> opens cropper modal
+  const handleAvatarUpload = (e) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Validate file size (10MB limit to allow cropping; final output is smaller)
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast.error('File must be less than 10MB');
         return;
       }
-      
-      try {
-        setIsLoading(true);
-        
-        // Upload avatar to Supabase storage
-        const { data, error } = await storage.uploadAvatar(user.id, file);
-        if (error) throw error;
-        
-        // Update profile with new avatar URL
-        const updatedProfile = { ...editProfile, avatar_url: data.path };
-        const { error: updateError } = await db.updateProfile(updatedProfile);
-        if (updateError) throw updateError;
-        
-        // Update local state
-        setEditProfile(updatedProfile);
-        await updateProfile(updatedProfile);
-        
-        toast.success('Avatar updated successfully');
-      } catch (error) {
-        console.error('Error uploading avatar:', error);
-        toast.error('Failed to upload avatar');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    img.onerror = () => {
-      toast.error('Invalid image file');
-    };
-    
-    img.src = URL.createObjectURL(file);
+
+      // Open cropper with selected file
+      const objectUrl = URL.createObjectURL(file);
+      setPendingFile(file);
+      setCropSrc(objectUrl);
+      setShowCropper(true);
+      // Reset input value to allow re-selecting the same file
+      e.target.value = '';
+    } catch (_) {
+      toast.error('Failed to open image');
+    }
   };
 
-  // Get the profile data to display (own profile or viewed profile)
-  const displayProfile = isViewingOwnProfile ? { ...profile, ...editProfile } : userProfile;
-  const displayName = displayProfile?.username || user?.email?.split('@')[0] || 'User';
-  
-  if (isLoading && !displayProfile) {
+  const handleCropCancel = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+    setPendingFile(null);
+    setShowCropper(false);
+  };
+
+  const handleCropConfirm = async (blob) => {
+    try {
+      setIsLoading(true);
+
+      // Create a File from the blob to keep storage API consistent
+      const fileName = `avatar_${Date.now()}.jpg`;
+      const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
+
+      const { data, error } = await storage.uploadAvatar(user.id, croppedFile);
+      if (error) throw error;
+
+      const updatedProfile = { ...editProfile, avatar_url: data.path };
+      const { error: updateError } = await db.updateProfile(updatedProfile);
+      if (updateError) throw updateError;
+
+      setEditProfile(updatedProfile);
+      await updateProfile(updatedProfile);
+      toast.success('Avatar updated successfully');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Failed to upload avatar');
+    } finally {
+      setIsLoading(false);
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+      setCropSrc(null);
+      setPendingFile(null);
+      setShowCropper(false);
+    }
+  };
+
+  const displayProfile = isViewingOwnProfile ? profile : userProfile;
+  const displayName = displayProfile?.username || 'Profile';
+
+  if (!user) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="max-w-md mx-auto p-6">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-lg">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Sign in</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Sign in to access your profile and sync data.</p>
+          <button
+            onClick={handleGoogleSignIn}
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 dark:hover:bg-gray-700 transition"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5" aria-hidden>
+              <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.62 32.91 29.24 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.84 1.154 7.957 3.043l5.657-5.657C34.869 6.053 29.706 4 24 4 12.954 4 4 12.954 4 24s8.954 20 20 20 20-8.954 20-20c0-1.341-.138-2.652-.389-3.917z"/>
+              <path fill="#FF3D00" d="M6.306 14.691l6.571 4.817C14.22 16.108 18.79 12 24 12c3.059 0 5.84 1.154 7.957 3.043l5.657-5.657C34.869 6.053 29.706 4 24 4 15.317 4 7.966 8.992 6.306 14.691z"/>
+              <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.197l-6.191-5.238C29.24 36 24 36 24 36c-5.202 0-9.572-3.08-11.29-7.386l-6.54 5.04C8.792 39.03 15.868 44 24 44z"/>
+              <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-1.083 3.09-3.403 5.572-6.094 7.035l6.191 5.238C38.907 37.682 44 32 44 24c0-1.341-.138-2.652-.389-3.917z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+        </div>
       </div>
     );
   }
-  
+
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
-      {/* Profile Header */}
+    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
       <ProfileHeader
         displayName={displayName}
         displayProfile={displayProfile}
@@ -390,42 +463,6 @@ export default function ProfilePage() {
         isLoading={isLoading}
       />
 
-      {/* Quick Visibility Toggle (shown only on own profile) */}
-      {isViewingOwnProfile && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between">
-          <div>
-            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-              {editProfile.is_public ? (
-                <Globe className="w-4 h-4 text-blue-600" />
-              ) : (
-                <Lock className="w-4 h-4 text-gray-500" />
-              )}
-              Profile Visibility
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              {editProfile.is_public
-                ? 'Your profile is visible to everyone'
-                : 'Your profile is private and only visible to you'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleTogglePublic}
-            disabled={isLoading}
-            className={`${editProfile.is_public ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-60`}
-            role="switch"
-            aria-checked={editProfile.is_public}
-          >
-            <span className="sr-only">Toggle public profile</span>
-            <span
-              aria-hidden="true"
-              className={`${editProfile.is_public ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
-            />
-          </button>
-        </div>
-      )}
-
-      {/* Profile Stats */}
       <ProfileStats
         displayProfile={displayProfile}
         followers={followers}
@@ -435,131 +472,54 @@ export default function ProfilePage() {
         loadFollowing={loadFollowing}
         handleAvatarUpload={handleAvatarUpload}
         isViewingOwnProfile={isViewingOwnProfile}
-        isEditing={isEditing}
+        isEditing={false}
         editProfile={editProfile}
         setEditProfile={setEditProfile}
       />
 
-      {/* Who to follow / Recommendations (only on own profile) */}
-      {isViewingOwnProfile && (
-        <RecommendedUsers
-          currentUserId={user?.id}
-          onFollow={async () => {
-            // Refresh following to reflect the new connection
-            try {
-              const { data } = await db.fetchUserFollowing(user?.id);
-              setFollowing(data || []);
-            } catch (e) {
-              // noop
-            }
-          }}
-        />
-      )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600 dark:text-gray-400">Visibility:</span>
+          <button
+            onClick={handleTogglePublic}
+            className="px-3 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          >
+            {editProfile.is_public ? 'Public' : 'Private'}
+          </button>
+        </div>
+        <button
+          onClick={toggleVisibilitySettings}
+          className="px-3 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
+          Settings
+        </button>
+      </div>
 
-      {/* Edit Profile Form */}
-      {isEditing && (
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Profile</h3>
-            <button
-              onClick={toggleVisibilitySettings}
-              className="flex items-center gap-2 px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              Privacy Settings
-            </button>
-          </div>
-
-          {showVisibilitySettings && (
-            <VisibilitySettings
-              editProfile={editProfile}
-              handleVisibilityChange={handleVisibilityChange}
-            />
-          )}
-
-          {/* Social Links */}
-          <div className="mt-6">
-            <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3">Social Links</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Website (full URL)</label>
-                <input
-                  type="url"
-                  value={editProfile.social_links?.website || ''}
-                  onChange={(e) => setEditProfile({ ...editProfile, social_links: { ...editProfile.social_links, website: e.target.value } })}
-                  placeholder="https://your-site.com"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Twitter (full URL)</label>
-                <input
-                  type="url"
-                  value={editProfile.social_links?.twitter || ''}
-                  onChange={(e) => setEditProfile({ ...editProfile, social_links: { ...editProfile.social_links, twitter: e.target.value } })}
-                  placeholder="https://twitter.com/yourhandle"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Instagram (full URL)</label>
-                <input
-                  type="url"
-                  value={editProfile.social_links?.instagram || ''}
-                  onChange={(e) => setEditProfile({ ...editProfile, social_links: { ...editProfile.social_links, instagram: e.target.value } })}
-                  placeholder="https://instagram.com/yourhandle"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">GitHub (full URL)</label>
-                <input
-                  type="url"
-                  value={editProfile.social_links?.github || ''}
-                  onChange={(e) => setEditProfile({ ...editProfile, social_links: { ...editProfile.social_links, github: e.target.value } })}
-                  placeholder="https://github.com/yourname"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Telegram (full URL)</label>
-                <input
-                  type="url"
-                  value={editProfile.social_links?.telegram || ''}
-                  onChange={(e) => setEditProfile({ ...editProfile, social_links: { ...editProfile.social_links, telegram: e.target.value } })}
-                  placeholder="https://t.me/yourhandle"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+      {showVisibilitySettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Profile settings">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowVisibilitySettings(false)} />
+          <div className="relative z-10 w-[92vw] max-w-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl overflow-hidden" ref={settingsPanelRef}>
+            <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Profile settings</h3>
+              <button
+                type="button"
+                onClick={() => setShowVisibilitySettings(false)}
+                className="px-2 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                ref={settingsCloseRef}
+              >
+                Close
+              </button>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Please enter full URLs starting with https://</p>
-          </div>
-
-          {/* Save/Cancel Buttons */}
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
-              onClick={handleCancelEdit}
-              className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSaveProfile}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg transition-colors"
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Save Changes
-            </button>
+            <div className="p-4">
+              <VisibilitySettings
+                editProfile={editProfile}
+                handleVisibilityChange={handleVisibilityChange}
+              />
+            </div>
           </div>
         </div>
       )}
 
-      {/* Profile Tabs */}
       <ProfileTabs
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -569,7 +529,6 @@ export default function ProfilePage() {
         profileStats={profileStats}
       />
 
-      {/* Followers Modal */}
       <FollowersModal
         showFollowers={showFollowers}
         showFollowing={showFollowing}
@@ -581,7 +540,25 @@ export default function ProfilePage() {
         listOwnerId={isViewingOwnProfile ? user?.id : userProfile?.id}
       />
 
-
+      {showCropper && (
+        <AvatarCropModal
+          src={cropSrc}
+          onCancel={handleCropCancel}
+          onConfirm={handleCropConfirm}
+          aspect={1}
+          outputSize={512}
+        />
+      )}
+      {isEditing && !showCropper && (
+        <EditProfileModal
+          editProfile={editProfile}
+          setEditProfile={setEditProfile}
+          onCancel={handleCancelEdit}
+          onSave={handleSaveProfile}
+          handleAvatarUpload={handleAvatarUpload}
+          isSaving={isLoading}
+        />
+      )}
     </div>
   );
 }

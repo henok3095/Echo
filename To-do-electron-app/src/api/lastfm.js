@@ -16,6 +16,60 @@ const pickImage = (arr) => {
   }
   return '';
 };
+ 
+// --- Search helpers (Last.fm) ---
+// Minimal normalization aligned with src/api/musicSearch.js
+function normalizeLastfmTrack(item) {
+  const artist = item?.artist?.name || item?.artist?.['#text'] || item?.artist || '';
+  return {
+    type: 'track',
+    title: item?.name || 'Unknown',
+    artist,
+    album: item?.album?.title || null,
+    year: null,
+    cover: pickImage(item?.image) || '',
+    source: 'lastfm',
+  };
+}
+
+function normalizeLastfmAlbum(item) {
+  const artist = item?.artist?.name || item?.artist || '';
+  return {
+    type: 'album',
+    title: item?.name || 'Unknown',
+    artist,
+    album: item?.name || null,
+    year: null,
+    cover: pickImage(item?.image) || '',
+    source: 'lastfm',
+  };
+}
+
+export async function searchLastfmTracks(query, limit = 10) {
+  if (!query || !query.trim()) return [];
+  const q = encodeURIComponent(query.trim());
+  const res = await fetch(
+    `${API_URL}?method=track.search&track=${q}&api_key=${API_KEY}&format=json&limit=${limit}`
+  );
+  const data = await res.json();
+  const matches = data?.results?.trackmatches?.track || [];
+  if (Array.isArray(matches)) return matches.map(normalizeLastfmTrack);
+  if (matches) return [normalizeLastfmTrack(matches)];
+  return [];
+}
+
+export async function searchLastfmAlbums(query, limit = 10) {
+  if (!query || !query.trim()) return [];
+  const q = encodeURIComponent(query.trim());
+  const res = await fetch(
+    `${API_URL}?method=album.search&album=${q}&api_key=${API_KEY}&format=json&limit=${limit}`
+  );
+  const data = await res.json();
+  const matches = data?.results?.albummatches?.album || [];
+  if (Array.isArray(matches)) return matches.map(normalizeLastfmAlbum);
+  if (matches) return [normalizeLastfmAlbum(matches)];
+  return [];
+}
 
 // simple bounded concurrency
 async function mapWithLimit(items, limit, mapper) {

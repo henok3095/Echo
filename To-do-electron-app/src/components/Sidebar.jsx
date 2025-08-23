@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, CheckSquare, Film, BookOpen, Lightbulb, Calendar, User, Sparkles, Music, Info, PenTool } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Film, BookOpen, Lightbulb, Calendar, User, TrendingUp, Music, Info, PenTool } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "./Logo.jsx";
 
@@ -18,7 +18,7 @@ const ROUTES = [
 
 const ICONS = [
   <LayoutDashboard className="w-5 h-5" key="dashboard" />,
-  <Sparkles className="w-5 h-5" key="activities" />,
+  <TrendingUp className="w-5 h-5" key="activities" />,
   <CheckSquare className="w-5 h-5" key="tasks" />,
   <Film className="w-5 h-5" key="movies" />,
   <Music className="w-5 h-5" key="music" />,
@@ -87,7 +87,7 @@ export default function Sidebar({ collapsed }) {
           className={collapsed ? "w-8 h-8 mx-auto" : "w-10 h-10"} 
           showText={!collapsed}
           textClassName="text-2xl font-bold"
-          preferredSrc="/dist/logo2.png"
+          preferredSrc="/logo.png"
         />
       </div>
 

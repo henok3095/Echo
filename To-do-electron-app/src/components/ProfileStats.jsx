@@ -15,11 +15,11 @@ export default function ProfileStats({
   setEditProfile
 }) {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
       <div className="flex flex-col md:flex-row items-start md:items-center space-y-6 md:space-y-0 md:space-x-8">
         {/* Avatar */}
         <div className="relative">
-          <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden ring-2 ring-gray-200 dark:ring-gray-700">
+          <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden ring-2 ring-gray-200 dark:ring-gray-700 ring-offset-2 ring-offset-white dark:ring-offset-gray-900 shadow-sm">
             {displayProfile?.avatar_url ? (
               <img 
                 src={displayProfile.avatar_url} 
@@ -54,7 +54,7 @@ export default function ProfileStats({
                     type="text"
                     value={editProfile.username}
                     onChange={(e) => setEditProfile({ ...editProfile, username: e.target.value })}
-                    className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent"
                     placeholder="Username"
                   />
                 ) : (
@@ -67,7 +67,7 @@ export default function ProfileStats({
                   <textarea
                     value={editProfile.bio}
                     onChange={(e) => setEditProfile({ ...editProfile, bio: e.target.value })}
-                    className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full mt-2"
+                    className="bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent w-full mt-2"
                     placeholder="Tell us about yourself..."
                     rows="3"
                   />

@@ -290,7 +290,7 @@ export default function LastfmStats({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Artists</h3>
           </div>
           <div className="space-y-3">
-            {topArtists.slice(0, 5).map((artist, index) => {
+            {(topArtists || []).slice(0, 5).map((artist, index) => {
               const name = artist.name;
               const key = name?.toLowerCase();
               const image = artist?.imageUrl || getImageUrl(artist?.image) || (key ? resolvedArtistImages[key] : '');
@@ -308,7 +308,7 @@ export default function LastfmStats({
                       {name}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatNumber(parseInt(artist.playcount))} plays
+                      {formatNumber(parseInt(artist?.playcount || 0))} plays
                     </p>
                   </div>
                 </div>
@@ -364,8 +364,8 @@ export default function LastfmStats({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Albums</h3>
           </div>
           <div className="space-y-3">
-            {topAlbums.slice(0, 5).map((album, index) => (
-              <div key={`${album.name}-${album.artist.name}`} className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60 transition-all duration-200">
+            {(topAlbums || []).slice(0, 5).map((album, index) => (
+              <div key={`${album?.name || index}-${album?.artist?.name || album?.artist || 'unknown'}`} className="group flex items-center gap-4 p-3 rounded-xl hover:bg-white/60 dark:hover:bg-gray-800/60 transition-all duration-200">
                 <div className="w-8 h-8 bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-900/30 dark:to-orange-800/30 rounded-lg flex items-center justify-center">
                   <span className="text-sm font-bold text-orange-600 dark:text-orange-400">
                     {index + 1}
@@ -373,10 +373,10 @@ export default function LastfmStats({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 dark:text-white truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
-                    {album.name}
+                    {album?.name || '—'}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {album.artist.name} • {formatNumber(parseInt(album.playcount))} plays
+                    {(album?.artist?.name || album?.artist || '—')} • {formatNumber(parseInt(album?.playcount || 0))} plays
                   </p>
                 </div>
               </div>
@@ -391,7 +391,7 @@ export default function LastfmStats({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Recent</h3>
           </div>
           <div className="space-y-3">
-            {recentTracks.slice(0, 5).map((track, index) => {
+            {(recentTracks || []).slice(0, 5).map((track, index) => {
               const title = track?.name || track?.track;
               const artistName = track?.artist?.name || track?.artist?.['#text'] || track?.artist;
               const key = `${artistName || ''}||${title || ''}`.toLowerCase();

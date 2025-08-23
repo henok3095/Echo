@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "main.js",
   "scripts": {
-    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --disable-gpu --disk-cache-dir=.cache\"",
+    "dev": "concurrently -k -n VITE,ELECTRON -c blue,green \"vite --strictPort --port 5173\" \"wait-on http://localhost:5173 && electron . --disable-gpu --disk-cache-dir=.cache\"",
     "start": "npm run build && electron . --disable-gpu --disk-cache-dir=.cache",
     "build": "vite build",
     "dist": "vite build && electron-builder",
@@ -65,6 +65,7 @@
     "date-fns": "^2.30.0",
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.536.0",
+    "react-easy-crop": "^5.0.1",
     "react": "^19.1.1",
     "react-big-calendar": "^1.8.6",
     "react-dom": "^19.1.1",

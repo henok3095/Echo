@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const siteUrl = import.meta.env.VITE_SITE_URL;
+const runtimeOrigin = typeof window !== 'undefined' && window.location && window.location.origin
+  ? window.location.origin
+  : undefined;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   // Defer hard failure to callers so the app can render a setup screen
@@ -21,6 +24,23 @@ export const auth = {
       password,
     });
     return { data, error };
+  },
+
+  // Sign in with Google OAuth
+  signInWithGoogle: async () => {
+    if (!supabase) return { data: null, error: new Error('Supabase not configured') };
+    try {
+      const redirectTo = (siteUrl || runtimeOrigin) ? `${(siteUrl || runtimeOrigin)}/auth/callback` : undefined;
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+        },
+      });
+      return { data, error };
+    } catch (error) {
+      return { data: null, error };
+    }
   },
 
   // Activities methods
@@ -67,7 +87,7 @@ export const auth = {
   
   signUp: async (email, password, userData) => {
     if (!supabase) return { data: null, error: new Error('Supabase not configured') };
-    const redirectTo = siteUrl ? `${siteUrl}/auth/callback` : undefined;
+    const redirectTo = (siteUrl || runtimeOrigin) ? `${(siteUrl || runtimeOrigin)}/auth/callback` : undefined;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -85,7 +105,7 @@ export const auth = {
   // Proper resend verification email for signup
   resendVerification: async (email) => {
     if (!supabase) return { data: null, error: new Error('Supabase not configured') };
-    const redirectTo = siteUrl ? `${siteUrl}/auth/callback` : undefined;
+    const redirectTo = (siteUrl || runtimeOrigin) ? `${(siteUrl || runtimeOrigin)}/auth/callback` : undefined;
     const { data, error } = await supabase.auth.resend({
       type: 'signup',
       email,
@@ -129,6 +149,7 @@ export const db = {
 
   // Activity reactions
   getActivityReactions: async (activityIds) => {
+    if (!supabase) return { data: [], error: new Error('Supabase not configured') };
     if (!Array.isArray(activityIds) || activityIds.length === 0) {
       return { data: [], error: null };
     }
@@ -140,6 +161,7 @@ export const db = {
   },
 
   addReaction: async (activityId, userId, type) => {
+    if (!supabase) return { data: null, error: new Error('Supabase not configured') };
     const { data, error } = await supabase
       .from('activity_reactions')
       .insert([{ activity_id: activityId, user_id: userId, type }])
@@ -149,6 +171,7 @@ export const db = {
   },
 
   removeReaction: async (activityId, userId, type) => {
+    if (!supabase) return { error: new Error('Supabase not configured') };
     const { error } = await supabase
       .from('activity_reactions')
       .delete()

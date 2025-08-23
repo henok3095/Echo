@@ -12,6 +12,7 @@ export default function MusicPage() {
   const { user } = useAuthStore();
   const { mediaEntries, addMediaEntry, fetchMediaEntries } = useMediaStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [viewMode, setViewMode] = useState('stats'); // 'stats' | 'library'
   const [formData, setFormData] = useState({
     title: "",
     artist: "",
@@ -26,7 +27,7 @@ export default function MusicPage() {
   const [recentTracks, setRecentTracks] = useState([]);
   const [topArtists, setTopArtists] = useState([]);
   const [topAlbums, setTopAlbums] = useState([]);
-  const [listeningMinutes, setListeningMinutes] = useState(0);
+  const [listeningStats, setListeningStats] = useState({ today: 0, week: 0, month: 0 });
   const [showLocalLibrary, setShowLocalLibrary] = useState(false);
   const [lastfmProfile, setLastfmProfile] = useState(null);
   const [nowPlaying, setNowPlaying] = useState({ isPlaying: false, track: null });
@@ -63,7 +64,8 @@ export default function MusicPage() {
         setRecentTracks(tracks);
         setTopArtists(artists);
         setTopAlbums(albums);
-        setListeningMinutes(minutes);
+        // We currently fetch only 7-day minutes; map to stats object with sane defaults
+        setListeningStats({ today: 0, week: minutes || 0, month: 0 });
         setNowPlaying(playing);
       } catch (error) {
         console.error('Error fetching Last.fm data:', error);
@@ -171,7 +173,7 @@ export default function MusicPage() {
       setRecentTracks(tracks);
       setTopArtists(artists);
       setTopAlbums(albums);
-      setListeningMinutes(minutes);
+      setListeningStats({ today: 0, week: minutes || 0, month: 0 });
       setLastfmProfile(profile);
       setNowPlaying(playing);
       
@@ -191,6 +193,7 @@ export default function MusicPage() {
   const handleSkipLastfm = () => {
     // User chose to skip Last.fm setup
     setShowLocalLibrary(true);
+    setViewMode('library');
   };
 
   return (
@@ -219,42 +222,52 @@ export default function MusicPage() {
           </p>
         </div>
 
-        {/* Add Music Button */}
-        <div className="flex justify-center mb-8">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-600 to-orange-600 text-white rounded-xl hover:from-pink-700 hover:to-orange-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="font-medium">Add Music</span>
-          </button>
+        {/* View Toggle */}
+        <div className="flex items-center justify-end mb-8">
+          <div className="inline-flex rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-900">
+            <button
+              onClick={() => setViewMode('stats')}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'stats' ? 'bg-pink-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+            >
+              Stats
+            </button>
+            <button
+              onClick={() => { setViewMode('library'); setShowLocalLibrary(true); }}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${viewMode === 'library' ? 'bg-pink-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+            >
+              Library
+            </button>
+          </div>
         </div>
 
-        {/* Conditional Content: Last.fm Setup or Stats */}
-        {!lastfmUsername ? (
-          <LastfmOnboarding 
-            onSetup={handleLastfmSetup}
-            onSkip={handleSkipLastfm}
-          />
+        {/* View Content */}
+        {viewMode === 'stats' ? (
+          !lastfmUsername ? (
+            <LastfmOnboarding 
+              onSetup={handleLastfmSetup}
+              onSkip={handleSkipLastfm}
+            />
+          ) : (
+            <LastfmStats 
+              lastfmProfile={lastfmProfile}
+              listeningStats={listeningStats}
+              topArtists={topArtists}
+              topAlbums={topAlbums}
+              recentTracks={recentTracks}
+              nowPlaying={nowPlaying}
+              isRefreshing={isRefreshing}
+              onRefresh={handleRefresh}
+            />
+          )
         ) : (
-          <LastfmStats 
-            lastfmProfile={lastfmProfile}
-            listeningMinutes={listeningMinutes}
-            topArtists={topArtists}
-            topAlbums={topAlbums}
-            recentTracks={recentTracks}
-            nowPlaying={nowPlaying}
-            isRefreshing={isRefreshing}
-            onRefresh={handleRefresh}
+          <LocalMusicLibrary 
+            musicEntries={musicEntries}
+            isVisible={showLocalLibrary}
+            onToggle={() => setShowLocalLibrary(!showLocalLibrary)}
+            onAdd={() => setShowAddModal(true)}
           />
         )}
-
-        {/* Local Music Library */}
-        <LocalMusicLibrary 
-          musicEntries={musicEntries}
-          isVisible={showLocalLibrary}
-          onToggle={() => setShowLocalLibrary(!showLocalLibrary)}
-        />
+        
       </div>
 
       {/* Add Music Modal */}

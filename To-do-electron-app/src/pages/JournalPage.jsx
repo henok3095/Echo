@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import PageHeader from '../components/PageHeader';
 import { useJournalStore } from '../store/index.jsx';
 import { Plus, Calendar, Smile, Frown, Meh, Tag, Pencil, Trash2, PenTool } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -84,21 +85,24 @@ export default function JournalPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <PenTool className="w-5 h-5 text-blue-600" />
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Journal</h1>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400">Write about your day and track your mood</p>
+      <div className="space-y-4">
+        <PageHeader
+          title="Journal"
+          subtitle="Write about your day and track your mood"
+          Icon={PenTool}
+          iconGradient="from-pink-500 to-orange-600"
+          titleGradient="from-pink-600 via-orange-600 to-red-600"
+          centered={true}
+        />
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="font-medium">New Entry</span>
+          </button>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          New Entry
-        </button>
       </div>
 
       {/* View Mode + Date Selector */}

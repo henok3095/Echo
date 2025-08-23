@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Search, BookOpen, Star, X, Loader, Trash2, CheckCircle, Clock, Bookmark, ChevronDown, Info, User, Calendar, Plus, Flame } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import { useMediaStore, useAuthStore } from '../store/index.jsx';
 import { useReadingStore } from '../store/reading.jsx';
 import { searchBooks } from '../api/books.js';
@@ -129,22 +130,23 @@ export default function BooksPage() {
     fetchSessions();
   }, [fetchMediaEntries, fetchSessions]);
 
-  const runSearch = async (searchQuery = query) => {
-    if (!searchQuery?.trim()) {
-      setResults([]);
+  const runSearch = async (q) => {
+    const term = (q ?? searchQuery)?.trim();
+    if (!term) {
+      setSearchResults([]);
       return;
     }
     setIsSearching(true);
     setError(null);
     try {
-      const res = await searchBooks(searchQuery.trim(), 12);
-      setResults(res);
+      const res = await searchBooks(term, 12);
+      setSearchResults(res);
       setError(null);
     } catch (e) {
       const errorMsg = e.message || 'Failed to search books';
       setError(errorMsg);
       toast.error(errorMsg);
-      setResults([]);
+      setSearchResults([]);
     } finally {
       setIsSearching(false);
     }
@@ -155,25 +157,34 @@ export default function BooksPage() {
 
   const handleAddBook = async () => {
     if (!selectedBook) return;
+    // Prevent duplicates
+    const dup = findDuplicateBook(selectedBook.title, selectedBook.authors?.[0] || '');
+    if (dup) {
+      toast.error('This book already exists in your library');
+      setExistingBookToUpdate(dup);
+      setShowExistingBookModal(true);
+      return;
+    }
     setAdding(true);
     try {
       await addMediaEntry({
         type: 'book',
         title: selectedBook.title,
-        director: selectedBook.authors?.join(', ') || '',
-        poster_path: selectedBook.thumbnail,
-        release_date: selectedBook.publishedDate,
+        director: selectedBook.authors?.[0] || '',
+        poster_path: selectedBook.image || '',
+        release_date: normalizeReleaseDate(selectedBook.publishedDate),
         overview: selectedBook.description,
-        status: bookStatus,
-        rating: uiToDbRating(bookRating),
-        review,
+        status: 'to_read',
+        rating: null,
+        review: review?.trim() || null,
       });
       toast.success('Book added to library');
       setShowAddModal(false);
       setSelectedBook(null);
-      setBookStatus('to_read');
+      setSelectedStatus('');
       setReview('');
-      setBookRating(0);
+      setRating(0);
+      await fetchMediaEntries('book');
     } catch (error) {
       toast.error('Failed to add book');
     } finally {
@@ -253,6 +264,17 @@ export default function BooksPage() {
     return null;
   };
 
+  // Detect duplicates by normalized title + author (stored as director in DB)
+  const findDuplicateBook = (title, author) => {
+    const t = (title || '').trim().toLowerCase();
+    const a = (author || '').trim().toLowerCase();
+    if (!t) return null;
+    return books.find(b =>
+      (b.title || '').trim().toLowerCase() === t &&
+      ((b.director || '').trim().toLowerCase() === a)
+    ) || null;
+  };
+
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setIsSearching(true);
@@ -291,6 +313,14 @@ export default function BooksPage() {
 
   const addBookWithStatus = async (book, status) => {
     try {
+      // Prevent duplicates
+      const dup = findDuplicateBook(book.title, book.authors?.[0] || '');
+      if (dup) {
+        toast.error('This book already exists in your library');
+        setExistingBookToUpdate(dup);
+        setShowExistingBookModal(true);
+        return;
+      }
       const bookData = {
         type: 'book',
         title: book.title,
@@ -324,6 +354,14 @@ export default function BooksPage() {
     if (!pendingBook) return;
     
     try {
+      // Prevent duplicates
+      const dup = findDuplicateBook(pendingBook.title, pendingBook.authors?.[0] || '');
+      if (dup) {
+        toast.error('This book already exists in your library');
+        setExistingBookToUpdate(dup);
+        setShowExistingBookModal(true);
+        return;
+      }
       const bookData = {
         type: 'book',
         title: pendingBook.title,
@@ -398,39 +436,33 @@ export default function BooksPage() {
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-purple-400/10 to-pink-600/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      <div className="relative p-6 space-y-8">
+      <div className="relative p-6 space-y-6">
         {/* Header */}
-        <div className="relative z-10">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
-                <BookOpen className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Books
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400">Track your reading journey</p>
-              </div>
-            </div>
-            
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowLogModal(true)}
-                className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-              >
-                <Clock className="w-5 h-5" />
-                <span className="font-medium">Log Reading</span>
-              </button>
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-              >
-                <Plus className="w-5 h-5" />
-                <span className="font-medium">Add Book</span>
-              </button>
-            </div>
+        <div className="relative z-10 space-y-4">
+          <PageHeader
+            title="Books"
+            subtitle="Track your reading journey"
+            Icon={BookOpen}
+            iconGradient="from-pink-500 to-orange-600"
+            titleGradient="from-pink-600 via-orange-600 to-red-600"
+            centered={true}
+          />
+          {/* Actions */}
+          <div className="flex items-center justify-center gap-3">
+            <button
+              onClick={() => setShowLogModal(true)}
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <Clock className="w-5 h-5" />
+              <span className="font-medium">Log Reading</span>
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="font-medium">Add Book</span>
+            </button>
           </div>
         </div>
 
@@ -574,7 +606,7 @@ export default function BooksPage() {
                   onShowDetails={setDetailBook}
                   openShelfFor={openShelfFor}
                   setOpenShelfFor={setOpenShelfFor}
-                  onBookClick={handleExistingBookClick}
+                  onBookClick={(b) => { setLogBookId(b.id); setShowLogModal(true); }}
                 />
               ))}
             </div>

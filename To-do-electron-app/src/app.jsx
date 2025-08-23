@@ -9,7 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ActivitiesPage from "./pages/ActivitiesPage";
 import TasksPage from "./pages/TasksPage";
 import MoviesPage from "./pages/MoviesPage";
-import MusicPage from "./pages/MusicPage";
+import MusicPage from "./pages/MusicPage_clean";
 import JournalPage from "./pages/JournalPage";
 import BooksPage from "./pages/BooksPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -18,8 +18,9 @@ import LandingPage from "./pages/LandingPage";
 import AuthModal from "./components/AuthModal";
 import { supabase, db } from './api/supabase.js';
 import ProfilePage from "./pages/ProfilePage";
-import { Toaster, toast } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import AboutPage from "./pages/AboutPage";
+import AuthCallback from "./pages/AuthCallback.jsx";
 
 function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -153,6 +154,7 @@ function AppLayout() {
               type === 'task_completed' ? 'completed a task' :
               type === 'movie_finished' ? 'finished a movie' :
               type === 'movie_rated' ? `rated a movie ${activity?.payload?.rating ?? ''}` :
+              type === 'media_added' ? ((activity?.payload?.type || '').toLowerCase() === 'book' ? 'added a book' : 'added media') :
               type === 'journal_created' ? 'wrote a journal entry' :
               'posted a new activity'
             );
@@ -195,6 +197,11 @@ function AppLayout() {
         </div>
       </div>
     );
+  }
+
+  // Allow OAuth callback route even when not authenticated (Supabase finalizes session)
+  if (window.location.pathname === '/auth/callback') {
+    return <AuthCallback />;
   }
 
   // Show landing page if not authenticated
@@ -267,6 +274,7 @@ function AppLayout() {
           
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<DashboardPage />} />
              <Route path="/activities" element={<ActivitiesPage />} />
              <Route path="/my-activities" element={<ActivitiesPage mode="mine" />} />

@@ -85,9 +85,9 @@ export default function LastfmOnboarding({ onSetup, onSkip }) {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Hero Section */}
-      <Card className="bg-gradient-to-br from-red-500 via-pink-500 to-purple-600 text-white text-center">
+      <Card className="bg-gradient-to-br from-red-500/40 via-pink-500/40 to-purple-600/40 dark:from-red-500/30 dark:via-pink-500/30 dark:to-purple-600/30 text-white text-center">
         <div className="py-8">
-          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
             <Music className="w-10 h-10" />
           </div>
           <h2 className="text-3xl font-bold mb-2">Connect Your Last.fm</h2>
@@ -106,7 +106,7 @@ export default function LastfmOnboarding({ onSetup, onSkip }) {
               href="https://www.last.fm/join"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-6 py-3 bg-white/20 hover:bg-white/30 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+              className="px-6 py-3 bg-white/15 hover:bg-white/25 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
             >
               <ExternalLink className="w-5 h-5" />
               Create Last.fm Account

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, Star } from 'lucide-react';
+import { searchMusic } from '../../api/musicSearch';
+import { searchLastfmTracks, searchLastfmAlbums } from '../../api/lastfm';
 
 export default function AddMusicModal({ 
   isOpen, 
@@ -9,6 +11,12 @@ export default function AddMusicModal({
   onSubmit 
 }) {
   if (!isOpen) return null;
+
+  const [activeTab, setActiveTab] = useState('search'); // 'search' | 'manual'
+  const [query, setQuery] = useState('');
+  const [includeLastfm, setIncludeLastfm] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState({ tracks: [], albums: [] });
 
   const resetForm = () => {
     onInputChange('title', '');
@@ -31,6 +39,52 @@ export default function AddMusicModal({
     resetForm();
   };
 
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setIsSearching(true);
+    try {
+      const base = await searchMusic(query, 10);
+      let lfTracks = [];
+      let lfAlbums = [];
+      if (includeLastfm) {
+        // Best-effort; may fail if API key is missing
+        try { lfTracks = await searchLastfmTracks(query, 10); } catch {}
+        try { lfAlbums = await searchLastfmAlbums(query, 10); } catch {}
+      }
+
+      // Merge and de-dup by title+artist
+      const dedupe = (arr) => {
+        const map = new Map();
+        for (const it of arr) {
+          const key = `${(it.artist||'').toLowerCase()}||${(it.title||'').toLowerCase()}||${it.type}`;
+          if (!map.has(key)) map.set(key, it);
+        }
+        return Array.from(map.values());
+      };
+
+      setResults({
+        tracks: dedupe([...(base.tracks||[]), ...lfTracks]),
+        albums: dedupe([...(base.albums||[]), ...lfAlbums]),
+      });
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const quickAddFromItem = (item) => {
+    // Map normalized search item to form fields
+    onInputChange('title', item.title || '');
+    onInputChange('artist', item.artist || '');
+    onInputChange('album', item.album || (item.type === 'album' ? item.title : ''));
+    onInputChange('year', item.year || '');
+    onInputChange('genre', '');
+    onInputChange('status', 'to_listen');
+    onInputChange('rating', 0);
+    onInputChange('review', '');
+    // Submit using existing flow
+    handleSubmit();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -46,6 +100,90 @@ export default function AddMusicModal({
         </div>
 
         <div className="p-6 space-y-6">
+          {/* Tabs */}
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={() => setActiveTab('search')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium ${activeTab==='search' ? 'bg-pink-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+            >Search</button>
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium ${activeTab==='manual' ? 'bg-pink-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300'}`}
+            >Manual</button>
+          </div>
+
+          {activeTab === 'search' ? (
+            <div className="space-y-4">
+              {/* Search controls */}
+              <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search tracks or albums..."
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                />
+                <label className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <input type="checkbox" className="accent-pink-600" checked={includeLastfm} onChange={(e)=>setIncludeLastfm(e.target.checked)} />
+                  Include Last.fm
+                </label>
+                <button
+                  onClick={handleSearch}
+                  disabled={isSearching || !query.trim()}
+                  className="px-4 py-2 bg-gradient-to-r from-pink-600 to-orange-600 text-white rounded-lg hover:from-pink-700 hover:to-orange-700 transition-colors disabled:opacity-50"
+                >{isSearching ? 'Searching...' : 'Search'}</button>
+              </div>
+
+              {/* Results */}
+              {(results.tracks.length > 0 || results.albums.length > 0) ? (
+                <div className="space-y-6">
+                  {results.tracks.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Tracks</h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {results.tracks.map((t, idx) => (
+                          <div key={`t-${idx}`} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {t.cover ? (<img src={t.cover} alt="" className="w-10 h-10 rounded object-cover" />) : (<div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700" />)}
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{t.title}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400 truncate">{t.artist}{t.album ? ` • ${t.album}` : ''}{t.year ? ` • ${t.year}` : ''}</div>
+                              </div>
+                            </div>
+                            <button onClick={() => quickAddFromItem(t)} className="px-3 py-1.5 text-xs bg-pink-600 text-white rounded-md hover:bg-pink-700">Add</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {results.albums.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Albums</h3>
+                      <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                        {results.albums.map((a, idx) => (
+                          <div key={`a-${idx}`} className="flex items-center justify-between gap-3 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {a.cover ? (<img src={a.cover} alt="" className="w-10 h-10 rounded object-cover" />) : (<div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700" />)}
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-gray-900 dark:text-white truncate">{a.title}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400 truncate">{a.artist}{a.year ? ` • ${a.year}` : ''}</div>
+                              </div>
+                            </div>
+                            <button onClick={() => quickAddFromItem(a)} className="px-3 py-1.5 text-xs bg-pink-600 text-white rounded-md hover:bg-pink-700">Add</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-400">Search iTunes/Deezer and Last.fm to quickly add music to your library.</p>
+              )}
+            </div>
+          ) : null}
+
+          {activeTab === 'manual' ? (
+          <>
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -189,6 +327,8 @@ export default function AddMusicModal({
               Add to Library
             </button>
           </div>
+          </>
+          ) : null}
         </div>
       </div>
     </div>

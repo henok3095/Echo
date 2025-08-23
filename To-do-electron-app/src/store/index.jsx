@@ -460,6 +460,67 @@ export const useMediaStore = create(
                 })
               }
             }
+
+            // Post specific book activities based on initial status/rating/progress
+            const isBook = created?.type === 'book' || created?.type === 'books'
+            if (isBook) {
+              const status = (created.status || '').toLowerCase()
+              const basePayload = {
+                id: created.id,
+                title: created.title,
+                type: created.type,
+                // Use 'director' field to represent author per app conventions
+                author: created.director || null,
+                poster_path: created.poster_path || null
+              }
+
+              if (status === 'completed' || status === 'finished' || status === 'read') {
+                await db.createActivity({
+                  user_id: user.id,
+                  type: 'book_finished',
+                  payload: basePayload
+                })
+              } else if (status === 'reading' || status === 'started' || status === 'in_progress') {
+                await db.createActivity({
+                  user_id: user.id,
+                  type: 'book_started',
+                  payload: basePayload
+                })
+              } else if (status === 'to_read' || status === 'watchlist' || status === 'want_to_read' || status === 'planning') {
+                await db.createActivity({
+                  user_id: user.id,
+                  type: 'book_watchlist',
+                  payload: basePayload
+                })
+              }
+
+              // Initial progress
+              if (created.hasOwnProperty('progress') || created.hasOwnProperty('pages_read')) {
+                const progressPayload = {
+                  ...basePayload,
+                  progress: created.progress ?? null,
+                  pages_read: created.pages_read ?? null
+                }
+                await db.createActivity({
+                  user_id: user.id,
+                  type: 'book_progress',
+                  payload: progressPayload
+                })
+              }
+
+              // Initial rating
+              if (created.rating != null) {
+                await db.createActivity({
+                  user_id: user.id,
+                  type: 'book_rated',
+                  payload: {
+                    ...basePayload,
+                    rating: created.rating,
+                    review: created.review || null
+                  }
+                })
+              }
+            }
           } catch (e) {
             console.warn('Failed to post specific movie activity:', e)
           }
@@ -542,6 +603,63 @@ export const useMediaStore = create(
                       rating: merged.rating,
                       review: merged.review || null,
                       type: merged.type
+                    }
+                  });
+                }
+              }
+            }
+
+            // Create activities for books: started/finished/watchlist/progress/rated
+            const isBook = (merged?.type === 'book' || merged?.type === 'books');
+            if (isBook) {
+              const { user } = useAuthStore.getState();
+              if (user?.id) {
+                const statusChanged = previous && updates.hasOwnProperty('status') && previous.status !== merged.status;
+                const ratingChanged = previous && updates.hasOwnProperty('rating') && previous.rating !== merged.rating && merged.rating != null;
+                const progressChanged = (
+                  (updates.hasOwnProperty('progress') && previous?.progress !== merged.progress) ||
+                  (updates.hasOwnProperty('pages_read') && previous?.pages_read !== merged.pages_read)
+                );
+
+                const basePayload = {
+                  id,
+                  title: merged.title,
+                  type: merged.type,
+                  author: merged.director || null,
+                  poster_path: merged.poster_path || null
+                };
+
+                if (statusChanged) {
+                  const s = (merged.status || '').toLowerCase();
+                  if (s === 'completed' || s === 'finished' || s === 'read') {
+                    await db.createActivity({ user_id: user.id, type: 'book_finished', payload: basePayload });
+                  } else if (s === 'reading' || s === 'started' || s === 'in_progress') {
+                    await db.createActivity({ user_id: user.id, type: 'book_started', payload: basePayload });
+                  } else if (s === 'to_read' || s === 'watchlist' || s === 'want_to_read' || s === 'planning') {
+                    await db.createActivity({ user_id: user.id, type: 'book_watchlist', payload: basePayload });
+                  }
+                }
+
+                if (progressChanged) {
+                  await db.createActivity({
+                    user_id: user.id,
+                    type: 'book_progress',
+                    payload: {
+                      ...basePayload,
+                      progress: merged.progress ?? null,
+                      pages_read: merged.pages_read ?? null
+                    }
+                  });
+                }
+
+                if (ratingChanged) {
+                  await db.createActivity({
+                    user_id: user.id,
+                    type: 'book_rated',
+                    payload: {
+                      ...basePayload,
+                      rating: merged.rating,
+                      review: merged.review || null
                     }
                   });
                 }

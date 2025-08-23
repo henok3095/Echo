@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTaskStore } from '../store/index.jsx';
 import { Plus, Lightbulb, CheckCircle, Clock, Flag, Trash2, Edit, LayoutGrid, List, Filter, Search, SortAsc, SortDesc, ChevronDown } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import TaskStreakTracker from "../components/TaskStreakTracker";
 import toast from 'react-hot-toast';
 
@@ -270,69 +271,66 @@ export default function TasksPage() {
         <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-gradient-to-br from-pink-400/20 to-yellow-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      {/* Header (aligned to MediaPage style) */}
-      <div className="relative z-10 pt-8 pb-2">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle className="w-7 h-7 text-blue-600 dark:text-blue-400" />
-              <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                Tasks & Ideas
-              </h1>
-            </div>
-            <p className="text-gray-600 dark:text-gray-400">Track your tasks and ideas</p>
+      {/* Header standardized to Music style */}
+      <div className="relative z-10 pt-8 pb-2 space-y-4">
+        <PageHeader
+          title="Tasks & Ideas"
+          subtitle="Track your tasks and ideas"
+          Icon={CheckCircle}
+          iconGradient="from-pink-500 to-orange-600"
+          titleGradient="from-pink-600 via-orange-600 to-red-600"
+          centered={true}
+        />
+        <div className="w-full flex items-center gap-3 flex-wrap justify-start sm:justify-end">
+          {/* View toggle */}
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <button onClick={() => setView('list')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='list' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
+              <List className="w-4 h-4" /> List
+            </button>
+            <button onClick={() => setView('board')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='board' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
+              <LayoutGrid className="w-4 h-4" /> Board
+            </button>
           </div>
-          <div className="w-full sm:w-auto flex items-center gap-3 flex-wrap justify-start sm:justify-end">
-            {/* View toggle */}
-            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              <button onClick={() => setView('list')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='list' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
-                <List className="w-4 h-4" /> List
-              </button>
-              <button onClick={() => setView('board')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='board' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
-                <LayoutGrid className="w-4 h-4" /> Board
-              </button>
-            </div>
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setShowAddDropdown(!showAddDropdown)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Add New
-                <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {showAddDropdown && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg z-50">
-                  <button
-                    onClick={() => {
-                      setShowAddTask(true);
-                      setShowAddDropdown(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-t-lg"
-                  >
-                    <Plus className="w-4 h-4 text-blue-600" />
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">Add Task</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">Create a new task with details</div>
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowAddIdea(true);
-                      setShowAddDropdown(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-b-lg"
-                  >
-                    <Lightbulb className="w-4 h-4 text-purple-600" />
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-white">Add Idea</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">Capture a quick idea or thought</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowAddDropdown(!showAddDropdown)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add New
+              <ChevronDown className={`w-4 h-4 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {showAddDropdown && (
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg z-50">
+                <button
+                  onClick={() => {
+                    setShowAddTask(true);
+                    setShowAddDropdown(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-t-lg"
+                >
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-white">Add Task</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Create a new task with details</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddIdea(true);
+                    setShowAddDropdown(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-b-lg"
+                >
+                  <Lightbulb className="w-4 h-4 text-purple-600" />
+                  <div>
+                    <div className="font-medium text-gray-900 dark:text-white">Add Idea</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Capture a quick idea or thought</div>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

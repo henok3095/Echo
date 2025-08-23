@@ -1,8 +1,8 @@
 import React from 'react';
-import { Music, Star, Calendar, CheckCircle, Play, Heart, Disc3 } from 'lucide-react';
+import { Music, Star, Calendar, CheckCircle, Play, Heart, Disc3, Plus } from 'lucide-react';
 import Card from '../Card';
 
-export default function LocalMusicLibrary({ musicEntries, isVisible, onToggle }) {
+export default function LocalMusicLibrary({ musicEntries, isVisible, onToggle, onAdd }) {
   const getStatusColor = (status) => {
     switch (status) {
       case 'to_listen': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
@@ -25,7 +25,7 @@ export default function LocalMusicLibrary({ musicEntries, isVisible, onToggle })
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <Music className="w-6 h-6 text-pink-500" />
           Your Music Library
@@ -33,12 +33,21 @@ export default function LocalMusicLibrary({ musicEntries, isVisible, onToggle })
             ({musicEntries.length})
           </span>
         </h2>
-        <button
-          onClick={onToggle}
-          className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-        >
-          {isVisible ? 'Hide Library' : 'Show Library'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onAdd}
+            className="inline-flex items-center gap-2 px-3 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Music
+          </button>
+          <button
+            onClick={onToggle}
+            className="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          >
+            {isVisible ? 'Hide' : 'Show'}
+          </button>
+        </div>
       </div>
 
       {isVisible && (

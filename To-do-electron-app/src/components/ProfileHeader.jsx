@@ -69,7 +69,7 @@ export default function ProfileHeader({
             Back
           </button>
         )}
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
           {displayName}
           {displayProfile?.is_public === false && !isViewingOwnProfile && (
             <span className="ml-2 text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
@@ -83,10 +83,10 @@ export default function ProfileHeader({
         <div className="flex space-x-3">
           <button
             onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors border ${
               isEditing 
-                ? 'bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-400'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                ? 'border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700'
+                : 'border-gray-300 text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:text-white dark:hover:bg-gray-700'
             }`}
           >
             {isEditing ? (
@@ -108,10 +108,10 @@ export default function ProfileHeader({
           <button
             onClick={handleFollowToggle}
             disabled={isLoading}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors border ${
               isFollowing
-                ? 'bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                ? 'border-gray-300 text-gray-800 hover:bg-gray-100 dark:border-gray-600 dark:text-white dark:hover:bg-gray-700'
+                : 'border-gray-300 text-gray-900 hover:bg-gray-100 dark:border-gray-600 dark:text-white dark:hover:bg-gray-700'
             }`}
           >
             {isLoading ? (

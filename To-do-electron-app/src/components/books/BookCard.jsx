@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BookOpen, User, Calendar, ChevronDown, Star } from 'lucide-react';
 import { dbToUiRating, formatRating } from '../../utils/ratings';
 import { useReadingStore } from '../../store/reading.jsx';
@@ -16,9 +16,11 @@ export default function BookCard({
   onShowDetails,
   openShelfFor,
   setOpenShelfFor,
-  onBookClick
+  onBookClick,
+  progressVariant = 'slider' // 'slider' | 'blocks'
 }) {
   const { sessions } = useReadingStore();
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   // Aggregate reading progress for this book
   const progress = useMemo(() => {
@@ -60,7 +62,7 @@ export default function BookCard({
   return (
     <div 
       onClick={() => onBookClick && onBookClick(book)}
-      className="overflow-hidden hover:shadow-[0_25px_50px_-12px_rgba(139,92,246,0.25)] transition-all duration-500 hover:scale-105 hover:-translate-y-2 group rounded-3xl border border-white/20 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-xl relative cursor-pointer"
+      className="overflow-hidden shadow-lg hover:shadow-[0_20px_45px_-10px_rgba(99,102,241,0.25)] transition-transform duration-300 hover:scale-[1.02] hover:-translate-y-1 group rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-xl relative cursor-pointer"
     >
       {/* Gradient overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -125,46 +127,105 @@ export default function BookCard({
           </span>
         </div>
         
-        {/* Consistent description container */}
-        <div className="mt-3 min-h-[3.75rem]">{/* ~3 lines at text-sm */}
-          <p className="text-sm text-white/70 line-clamp-3 leading-relaxed">
-            {book.overview && book.overview.trim().length > 0 ? book.overview : 'No description'}
-          </p>
+        {/* Consistent description with Show more/less */}
+        <div className="mt-3">
+          {(() => {
+            const hasDesc = !!(book.overview && book.overview.trim().length > 0);
+            const desc = hasDesc ? book.overview.trim() : 'No description';
+            const isLong = hasDesc && desc.length > 220;
+            return (
+              <div>
+                <p className={`text-sm text-white/70 leading-relaxed ${!showFullDesc && isLong ? 'line-clamp-3' : ''}`}>
+                  {desc}
+                </p>
+                {isLong && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setShowFullDesc(v => !v); }}
+                    className="mt-1 text-xs font-medium text-purple-300 hover:text-purple-200"
+                  >
+                    {showFullDesc ? 'Show less' : 'Show more'}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
-        {/* Reading Progress (reserved height for consistency) */}
+        {/* Reading Progress - always-visible volume bar */}
         <div className="mt-3 min-h-[52px]">
-          {(progress.totalMinutes > 0 || progress.totalPages > 0) ? (
-            <div className="space-y-2">
-              {progress.percent != null && (
-                <div>
-                  <div className="flex items-center justify-between text-xs text-white/70 mb-1">
-                    <span>Progress</span>
-                    <span>{progress.percent}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+          <div className="space-y-2">
+            <div>
+              <div className="flex items-center justify-between text-xs text-white/70 mb-1">
+                <span>Progress</span>
+                <span>{(progress.percent ?? 0)}%</span>
+              </div>
+              {/* Progress bar variants */}
+              {progressVariant === 'slider' ? (
+                <div className="relative mt-1 select-none" aria-label={`Reading progress ${(progress.percent ?? 0)}%`}>
+                  {/* Track */}
+                  <div className="w-full h-2 rounded-full bg-white/12 overflow-hidden">
+                    {/* Fill */}
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-400 to-teal-400"
-                      style={{ width: `${progress.percent}%` }}
+                      className="h-full bg-gradient-to-r from-sky-400 via-indigo-400 to-violet-500 transition-[width] duration-500 ease-out"
+                      style={{ width: `${(progress.percent ?? 0)}%` }}
                     />
+                  </div>
+                  {/* Ticks */}
+                  <div className="absolute inset-0 flex items-center justify-between px-[2px]">
+                    {Array.from({ length: 11 }).map((_, i) => (
+                      <div key={i} className="w-[1px] h-2 bg-white/20" />
+                    ))}
+                  </div>
+                  {/* Knob */}
+                  <div
+                    className="absolute -top-1.5 -translate-x-1/2"
+                    style={{ left: `${(progress.percent ?? 0)}%` }}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white/90 border border-white/60 shadow-md shadow-indigo-500/20" />
+                  </div>
+                  {/* Centered overlay percent badge */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-[11px] font-semibold text-white/85 bg-black/30 px-2 py-0.5 rounded-full border border-white/20 backdrop-blur-sm">
+                      {(progress.percent ?? 0)}%
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* 'blocks' variant: stepped volume blocks */
+                <div className="relative mt-1 select-none" aria-label={`Reading progress ${(progress.percent ?? 0)}%`}>
+                  <div className="w-full flex gap-1">
+                    {Array.from({ length: 10 }).map((_, i) => {
+                      const filled = Math.round(((progress.percent ?? 0) / 100) * 10);
+                      return (
+                        <div
+                          key={i}
+                          className={`h-3 flex-1 rounded-[3px] border border-white/10 transition-colors duration-300 ${i < filled ? 'bg-gradient-to-b from-sky-400 to-indigo-500' : 'bg-white/8'} `}
+                        />
+                      );
+                    })}
+                  </div>
+                  {/* Centered overlay percent badge */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-[11px] font-semibold text-white/85 bg-black/30 px-2 py-0.5 rounded-full border border-white/20 backdrop-blur-sm">
+                      {(progress.percent ?? 0)}%
+                    </span>
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-3 text-xs text-white/70">
-                {progress.totalPages > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20">{progress.totalPages} pages</span>
-                )}
-                {progress.totalMinutes > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20">{progress.totalMinutes} min</span>
-                )}
-                {progress.lastDate && (
-                  <span className="ml-auto text-[11px] text-white/60">Last: {new Date(progress.lastDate).toLocaleDateString()}</span>
-                )}
-              </div>
             </div>
-          ) : (
-            <div className="h-full flex items-center text-xs text-white/50">No reading progress yet</div>
-          )}
+            <div className="flex items-center gap-3 text-xs text-white/70">
+              {progress.totalPages > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20">{progress.totalPages} pages</span>
+              )}
+              {progress.totalMinutes > 0 && (
+                <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20">{progress.totalMinutes} min</span>
+              )}
+              {progress.lastDate && (
+                <span className="ml-auto text-[11px] text-white/60">Last: {new Date(progress.lastDate).toLocaleDateString()}</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {Array.isArray(book.tags) && book.tags.length > 0 && (
@@ -178,7 +239,7 @@ export default function BookCard({
           </div>
         )}
         
-        {/* Action buttons - pinned to bottom for consistency */}
+        {/* Action buttons - consistent footer */}
         <div className="mt-4 flex items-center justify-center pt-2 border-t border-white/10">
           <button
             onClick={(e) => {

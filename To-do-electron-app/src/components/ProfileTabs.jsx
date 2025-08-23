@@ -1,4 +1,5 @@
 import React from 'react';
+import RecommendedUsers from './RecommendedUsers.jsx';
 import { UserCheck, Globe, Twitter, Instagram, Github, Send } from 'lucide-react';
 
 export default function ProfileTabs({
@@ -104,27 +105,27 @@ export default function ProfileTabs({
               {(social.website || social.twitter || social.instagram || social.github || social.telegram) && (
                 <div className="flex flex-wrap gap-3 mt-3">
                   {social.website && (
-                    <a href={buildUrl('website', social.website)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                    <a href={buildUrl('website', social.website)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gray-800 dark:text-gray-200 hover:underline">
                       <Globe className="w-4 h-4" /> Website
                     </a>
                   )}
                   {social.twitter && (
-                    <a href={buildUrl('twitter', social.twitter)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                    <a href={buildUrl('twitter', social.twitter)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gray-800 dark:text-gray-200 hover:underline">
                       <Twitter className="w-4 h-4" /> Twitter
                     </a>
                   )}
                   {social.instagram && (
-                    <a href={buildUrl('instagram', social.instagram)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                    <a href={buildUrl('instagram', social.instagram)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gray-800 dark:text-gray-200 hover:underline">
                       <Instagram className="w-4 h-4" /> Instagram
                     </a>
                   )}
                   {social.github && (
-                    <a href={buildUrl('github', social.github)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                    <a href={buildUrl('github', social.github)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gray-800 dark:text-gray-200 hover:underline">
                       <Github className="w-4 h-4" /> GitHub
                     </a>
                   )}
                   {social.telegram && (
-                    <a href={buildUrl('telegram', social.telegram)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline">
+                    <a href={buildUrl('telegram', social.telegram)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gray-800 dark:text-gray-200 hover:underline">
                       <Send className="w-4 h-4" /> Telegram
                     </a>
                   )}
@@ -153,6 +154,12 @@ export default function ProfileTabs({
                 </div>
               </div>
             </div>
+
+            {isViewingOwnProfile && (
+              <div className="pt-2">
+                <RecommendedUsers currentUserId={user?.id} />
+              </div>
+            )}
           </div>
         );
       }
@@ -182,8 +189,8 @@ export default function ProfileTabs({
               onClick={() => setActiveTab(tab.id)}
               className={`${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                  ? 'border-gray-900 text-gray-900 dark:border-gray-100 dark:text-gray-100'
+                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-400 dark:text-gray-400 dark:hover:text-gray-200'
               } whitespace-nowrap py-3 md:py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 transition-colors`}
             >
               {tab.icon && <tab.icon className="w-4 h-4" />}

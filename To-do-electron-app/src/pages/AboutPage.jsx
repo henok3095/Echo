@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sparkles, User as UserIcon, Info, Lightbulb, Github, Instagram, Mail } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 
 // Inline Telegram logo (proper brand mark)
 const TelegramIcon = ({ className = 'w-5 h-5' }) => (
@@ -22,22 +23,14 @@ export default function AboutPage() {
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-purple-600/10 to-fuchsia-600/10 dark:from-blue-400/10 dark:via-purple-400/10 dark:to-fuchsia-400/10" />
         <div className="relative max-w-5xl mx-auto px-6 py-12 md:py-16">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-bold shadow-lg">
-              HE
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent dark:from-blue-400 dark:via-purple-400 dark:to-fuchsia-400">
-                  About Echo
-                </span>
-              </h1>
-              <p className="mt-2 text-gray-700 dark:text-gray-300 max-w-3xl">
-                Echo is a calm, cohesive home for the important parts of life — tasks, journals, memories,
-                media, and connection — designed to feel like your personal studio.
-              </p>
-            </div>
-          </div>
+          <PageHeader
+            title="About Echo"
+            subtitle="Echo is a calm, cohesive home for tasks, journals, memories, media, and connection — your personal studio."
+            Icon={Info}
+            iconGradient="from-pink-500 to-orange-600"
+            titleGradient="from-pink-600 via-orange-600 to-red-600"
+            centered={false}
+          />
         </div>
       </section>
 

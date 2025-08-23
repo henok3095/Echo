@@ -19,8 +19,9 @@ import {
 import { useMediaStore, useAuthStore } from '../store/index.jsx';
 import { searchMulti, getMovieDetails, getTVDetails } from "../api/tmdb";
 import Card from "../components/Card";
+import PageHeader from "../components/PageHeader";
 import toast from 'react-hot-toast';
-import MediaStreakTracker from "../components/MediaStreakTracker";
+// Removed MediaStreakTracker import as streak display is no longer used
 
 const MEDIA_TYPES = [
   { value: 'movie', label: 'Movie', icon: Film },
@@ -98,6 +99,26 @@ export default function MoviesPage() {
   useEffect(() => {
     fetchMediaEntries();
   }, [fetchMediaEntries]);
+
+  // Duplicate detection: prefer TMDB ID, fallback to title + release year
+  const normalizeTitle = (s) => (s || '').trim().toLowerCase();
+  const getYear = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    const y = d.getFullYear();
+    return isNaN(y) ? '' : String(y);
+  };
+  const findDuplicateMedia = (title, mediaType, tmdbId, releaseDate) => {
+    const t = normalizeTitle(title);
+    const y = getYear(releaseDate);
+    return movieEntries.find(m => {
+      if (m.type !== mediaType) return false;
+      if (tmdbId && m.tmdb_id) return m.tmdb_id === tmdbId;
+      const mt = normalizeTitle(m.title);
+      const my = getYear(m.release_date);
+      return mt === t && (y ? my === y : true);
+    }) || null;
+  };
 
   // Close dropup when clicking outside
   useEffect(() => {
@@ -214,6 +235,17 @@ export default function MoviesPage() {
   // Add movie to watch diary
   const addToWatchDiary = async (movie) => {
     try {
+      // Prevent duplicates
+      const dup = findDuplicateMedia(
+        movie.title || movie.name,
+        movie.media_type,
+        movie.id,
+        movie.release_date || movie.first_air_date
+      );
+      if (dup) {
+        toast.error('This item already exists in your library');
+        return;
+      }
       const mediaData = {
         title: movie.title || movie.name,
         type: movie.media_type,
@@ -241,6 +273,17 @@ export default function MoviesPage() {
   // Add movie with specific status
   const addMovieWithStatus = async (movie, status) => {
     try {
+      // Prevent duplicates
+      const dup = findDuplicateMedia(
+        movie.title || movie.name,
+        movie.media_type,
+        movie.id,
+        movie.release_date || movie.first_air_date
+      );
+      if (dup) {
+        toast.error('This item already exists in your library');
+        return;
+      }
       const mediaData = {
         title: movie.title || movie.name,
         type: movie.media_type,
@@ -269,6 +312,17 @@ export default function MoviesPage() {
     if (!pendingMovie) return;
     
     try {
+      // Prevent duplicates
+      const dup = findDuplicateMedia(
+        pendingMovie.title || pendingMovie.name,
+        pendingMovie.media_type,
+        pendingMovie.id,
+        pendingMovie.release_date || pendingMovie.first_air_date
+      );
+      if (dup) {
+        toast.error('This item already exists in your library');
+        return;
+      }
       const mediaData = {
         title: pendingMovie.title || pendingMovie.name,
         type: pendingMovie.media_type,
@@ -316,6 +370,17 @@ export default function MoviesPage() {
       return;
     }
     try {
+      // Prevent duplicates
+      const dup = findDuplicateMedia(
+        selectedMedia.title || selectedMedia.name,
+        selectedMedia.media_type,
+        selectedMedia.id,
+        selectedMedia.release_date || selectedMedia.first_air_date
+      );
+      if (dup) {
+        toast.error('This item already exists in your library');
+        return;
+      }
       const mediaData = {
         title: selectedMedia.title || selectedMedia.name,
         type: selectedMedia.media_type,
@@ -375,35 +440,28 @@ export default function MoviesPage() {
 
       <div className="relative p-6 space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg">
-                <Film className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent">
-                  Movies & TV Shows
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  Track your favorite movies and series
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Add Media Buttons */}
-          <div className="flex gap-2">
+        <div className="space-y-4">
+          <PageHeader 
+            title="Movies & TV Shows"
+            subtitle="Track your favorite movies and series"
+            Icon={Film}
+            iconGradient="from-pink-500 to-orange-600"
+            titleGradient="from-pink-600 via-orange-600 to-red-600"
+            centered={true}
+          />
+
+          {/* Actions under title */}
+          <div className="flex items-center justify-center gap-3">
             <button
               onClick={() => setShowWatchDiaryModal(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
             >
               <Calendar className="w-5 h-5" />
               <span className="font-medium">Watch Diary</span>
             </button>
             <button
               onClick={() => { setShowAddModal(true); setShowDropup(false); }}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
             >
               <Film className="w-5 h-5" />
               <span className="font-medium">Add</span>
@@ -411,10 +469,7 @@ export default function MoviesPage() {
           </div>
         </div>
 
-        {/* Movies Streak Tracker */}
-        <div className="relative z-10 mb-4">
-          <MediaStreakTracker mediaEntries={movieEntries} />
-        </div>
+        {/* Movies Streak Tracker removed per request */}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

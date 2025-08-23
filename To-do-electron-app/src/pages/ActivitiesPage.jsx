@@ -1,3 +1,9 @@
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { db, supabase } from "../api/supabase.js";
+import { TrendingUp, Music, Film, Clock, UserCircle2, BookOpen } from "lucide-react";
+import { useAuthStore } from "../store/index.jsx";
+import toast from 'react-hot-toast';
+
 function JournalPreview({ entryId }) {
   const [content, setContent] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -36,10 +42,6 @@ function JournalPreview({ entryId }) {
     </div>
   );
 }
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { db } from "../api/supabase.js";
-import { Sparkles, Music, Film, Clock, UserCircle2 } from "lucide-react";
-import { useAuthStore } from "../store/index.jsx";
 
 const REACTIONS = [
   { key: 'love', label: 'Love', emoji: '❤️' },
@@ -64,13 +66,83 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
   const content = useMemo(() => {
     switch (type) {
       case "media_added": {
-        const icon = <Film className="w-4 h-4 text-purple-600 dark:text-purple-300" />;
+        const kind = (payload?.type || "media").toLowerCase();
         const title = payload?.title || "Untitled";
-        const kind = payload?.type || "media";
+        const isBook = kind === 'book' || kind === 'books';
+        const icon = isBook
+          ? <BookOpen className="w-4 h-4 text-indigo-600 dark:text-indigo-300" />
+          : <Film className="w-4 h-4 text-purple-600 dark:text-purple-300" />;
         return { icon, text: (
           <span>
-            <b className="font-semibold">{profile?.username || "Someone"}</b> added {kind}: <span className="text-purple-700 dark:text-purple-300">{title}</span>
+            <b className="font-semibold">{profile?.username || "Someone"}</b> added {isBook ? 'book' : kind}: <span className={isBook ? "text-indigo-700 dark:text-indigo-300" : "text-purple-700 dark:text-purple-300"}>{title}</span>
           </span>
+        )};
+      }
+      case "book_started":
+      case "book_progress":
+      case "book_finished":
+      case "book_watchlist":
+      case "book_rated": {
+        const isFinished = type === 'book_finished';
+        const isStarted = type === 'book_started';
+        const isProgress = type === 'book_progress';
+        const isWatchlist = type === 'book_watchlist';
+        const isRated = type === 'book_rated';
+        const icon = <BookOpen className={`w-4 h-4 ${isFinished ? 'text-emerald-600 dark:text-emerald-300' : isWatchlist ? 'text-blue-600 dark:text-blue-300' : isRated ? 'text-yellow-600 dark:text-yellow-300' : 'text-indigo-600 dark:text-indigo-300'}`} />;
+        const title = payload?.title || 'Book';
+        const author = payload?.author || payload?.director || null;
+        const cover = payload?.cover_url || payload?.poster_path;
+        const rating = payload?.rating ?? null;
+        const progress = payload?.progress ?? payload?.pages_read ?? null; // pages or percent
+        const headerLabel = isFinished ? 'Finished' : isWatchlist ? 'Reading List' : isRated ? 'Rated' : isStarted ? 'Started' : 'Progress';
+        const borderCls = isFinished
+          ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/70 dark:bg-emerald-900/20'
+          : isWatchlist
+          ? 'border-blue-200 dark:border-blue-900/40 bg-blue-50/70 dark:bg-blue-900/20'
+          : isRated
+          ? 'border-yellow-200 dark:border-yellow-900/40 bg-yellow-50/70 dark:bg-yellow-900/20'
+          : 'border-indigo-200 dark:border-indigo-900/40 bg-indigo-50/70 dark:bg-indigo-900/20';
+        const headerTextCls = isFinished
+          ? 'text-emerald-700 dark:text-emerald-300'
+          : isWatchlist
+          ? 'text-blue-700 dark:text-blue-300'
+          : isRated
+          ? 'text-yellow-700 dark:text-yellow-300'
+          : 'text-indigo-700 dark:text-indigo-300';
+        return { icon, render: (
+          <div className={`rounded-xl border ${borderCls} overflow-hidden`}>
+            <div className={`px-4 pt-3 pb-2 flex items-center gap-2 text-xs ${headerTextCls}`}>
+              {icon}
+              <span>{headerLabel}</span>
+              {profile?.username && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/60 dark:bg-white/10 text-current font-semibold">
+                  by {profile.username}
+                </span>
+              )}
+            </div>
+            <div className="px-4 pb-4 flex gap-3">
+              {cover ? (
+                <img src={cover.startsWith('http') ? cover : `https://image.tmdb.org/t/p/w92${cover}`} alt={title} className="w-16 h-24 rounded-lg object-cover border border-white/50 dark:border-white/10" />
+              ) : (
+                <div className="w-16 h-24 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 opacity-60" />
+                </div>
+              )}
+              <div className="flex-1">
+                <div className="text-sm text-gray-800 dark:text-gray-100">
+                  <b className="text-gray-900 dark:text-white">{profile?.username || 'Someone'}</b> {isFinished ? 'finished' : isWatchlist ? 'saved' : isRated ? 'rated' : isStarted ? 'started' : 'updated progress on'} <b>{title}</b>
+                  {author && <span className="text-gray-500 dark:text-gray-400"> by {author}</span>}
+                  {isRated && rating != null && (
+                    <span className="ml-1 text-yellow-700 dark:text-yellow-300">{String(rating)}/10</span>
+                  )}
+                </div>
+                {isProgress && progress != null && (
+                  <div className="mt-1 text-xs text-gray-600 dark:text-gray-300">Progress: {progress}{typeof progress === 'number' && progress <= 100 ? '%' : ''}</div>
+                )}
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{timeAgo(created_at)}</div>
+              </div>
+            </div>
+          </div>
         )};
       }
       case "movie_finished": {
@@ -82,6 +154,11 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
             <div className="px-4 pt-3 pb-2 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300">
               {icon}
               <span>Finished</span>
+              {profile?.username && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-900 dark:text-emerald-200 font-semibold">
+                  by {profile.username}
+                </span>
+              )}
             </div>
             <div className="px-4 pb-4 flex gap-3">
               {poster ? (
@@ -110,6 +187,11 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
             <div className="px-4 pt-3 pb-2 flex items-center gap-2 text-xs text-rose-700 dark:text-rose-300">
               {icon}
               <span>Dropped</span>
+              {profile?.username && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100/70 dark:bg-rose-900/40 text-rose-900 dark:text-rose-200 font-semibold">
+                  by {profile.username}
+                </span>
+              )}
             </div>
             <div className="px-4 pb-4 flex gap-3">
               {poster ? (
@@ -138,6 +220,11 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
             <div className="px-4 pt-3 pb-2 flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
               {icon}
               <span>Watchlist</span>
+              {profile?.username && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100/70 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200 font-semibold">
+                  by {profile.username}
+                </span>
+              )}
             </div>
             <div className="px-4 pb-4 flex gap-3">
               {poster ? (
@@ -168,6 +255,11 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
             <div className="px-4 pt-3 pb-2 flex items-center gap-2 text-xs text-yellow-700 dark:text-yellow-300">
               {icon}
               <span>Rated</span>
+              {profile?.username && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-yellow-100/70 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200 font-semibold">
+                  by {profile.username}
+                </span>
+              )}
             </div>
             <div className="px-4 pb-4 flex gap-3">
               {poster ? (
@@ -193,7 +285,7 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
         )};
       }
       case "task_completed": {
-        const icon = <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />;
+        const icon = <TrendingUp className="w-4 h-4 text-emerald-600 dark:text-emerald-300" />;
         const title = payload?.title || "Task";
         return { icon, text: (
           <span>
@@ -202,18 +294,20 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
         )};
       }
       case "journal_created": {
-        const icon = <Sparkles className="w-4 h-4 text-rose-600 dark:text-rose-300" />;
+        const icon = <TrendingUp className="w-4 h-4 text-rose-600 dark:text-rose-300" />;
         const title = payload?.title || "Journal entry";
         const id = payload?.id;
         return { icon, render: (
           <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/70 shadow-sm overflow-hidden">
-            <div className="px-4 pt-4 pb-2 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+            <div className="px-4 pt-4 pb-2 flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               {icon}
               <span>Journal</span>
               <span>•</span>
               <span>{timeAgo(created_at)}</span>
               {profile?.username && (
-                <span className="ml-auto">by <b className="text-gray-700 dark:text-gray-200">{profile.username}</b></span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-semibold">
+                  by {profile.username}
+                </span>
               )}
             </div>
             <div className="px-4 pb-4">
@@ -228,11 +322,53 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
       }
       case "music_stat": {
         const icon = <Music className="w-4 h-4 text-pink-600 dark:text-pink-300" />;
-        const today = payload?.today ?? 0;
-        return { icon, text: (
-          <span>
-            <b className="font-semibold">{profile?.username || "Someone"}</b> listened to <b>{today}</b> tracks today
-          </span>
+        const topArtist = payload?.topArtist;
+        const topTrack = payload?.topTrack;
+        const topGenre = payload?.topGenre;
+        const streakDays = payload?.streakDays;
+        const today = payload?.today;
+        const week = payload?.week;
+        const minutesToday = payload?.minutesToday;
+        const newArtists = payload?.newArtistsCount;
+
+        const chips = [];
+        if (topArtist) chips.push({ label: `Top Artist`, value: topArtist, cls: 'bg-pink-100/70 dark:bg-pink-900/30 text-pink-900 dark:text-pink-200' });
+        if (topTrack) chips.push({ label: `Top Track`, value: topTrack, cls: 'bg-indigo-100/70 dark:bg-indigo-900/30 text-indigo-900 dark:text-indigo-200' });
+        if (topGenre) chips.push({ label: `Top Genre`, value: topGenre, cls: 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-900 dark:text-purple-200' });
+        if (typeof streakDays === 'number' && streakDays >= 3) chips.push({ label: `Streak`, value: `${streakDays} days`, cls: 'bg-amber-100/70 dark:bg-amber-900/30 text-amber-900 dark:text-amber-200' });
+        if (typeof today === 'number' && today >= 20) chips.push({ label: `Today`, value: `${today} plays`, cls: 'bg-emerald-100/70 dark:bg-emerald-900/30 text-emerald-900 dark:text-emerald-200' });
+        if (typeof week === 'number' && week >= 100) chips.push({ label: `This Week`, value: `${week} plays`, cls: 'bg-blue-100/70 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200' });
+        if (typeof minutesToday === 'number' && minutesToday >= 120) chips.push({ label: `Listening`, value: `${minutesToday} min`, cls: 'bg-teal-100/70 dark:bg-teal-900/30 text-teal-900 dark:text-teal-200' });
+        if (typeof newArtists === 'number' && newArtists > 0) chips.push({ label: `New Artists`, value: `${newArtists}`, cls: 'bg-fuchsia-100/70 dark:bg-fuchsia-900/30 text-fuchsia-900 dark:text-fuchsia-200' });
+
+        return { icon, render: (
+          <div className="rounded-xl border border-pink-200 dark:border-pink-900/40 bg-pink-50/70 dark:bg-pink-900/20 overflow-hidden">
+            <div className="px-4 pt-3 pb-2 flex items-center gap-2 text-xs text-pink-700 dark:text-pink-300">
+              {icon}
+              <span>Music Stats</span>
+              {profile?.username && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-pink-100/70 dark:bg-pink-900/40 text-pink-900 dark:text-pink-200 font-semibold">
+                  by {profile.username}
+                </span>
+              )}
+            </div>
+            <div className="px-4 pb-4">
+              {chips.length > 0 ? (
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {chips.map((c, i) => (
+                    <span key={i} className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border border-white/50 dark:border-white/10 ${c.cls}`}>
+                      <b>{c.label}:</b> <span className="truncate max-w-[12rem]">{c.value}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-700 dark:text-gray-200">
+                  <b className="font-semibold">{profile?.username || 'Someone'}</b> posted listening stats
+                </div>
+              )}
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">{timeAgo(created_at)}</div>
+            </div>
+          </div>
         )};
       }
       case "now_playing": {
@@ -262,7 +398,7 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
         )};
       }
       default:
-        return { icon: <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-300" />, text: (
+        return { icon: <TrendingUp className="w-4 h-4 text-teal-600 dark:text-teal-300" />, text: (
           <span>
             <b className="font-semibold">{profile?.username || "Someone"}</b> posted an update
           </span>
@@ -270,18 +406,25 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
     }
   }, [type, payload, profile]);
 
+  const badge = useMemo(() => {
+    const map = {
+      journal_created: { label: 'Journal', cls: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-200' },
+      movie_review: { label: 'Movie', cls: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200' },
+      music_weekly: { label: 'Music', cls: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200' },
+      task_completed: { label: 'Task', cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200' },
+      default: { label: 'Update', cls: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-200' },
+    };
+    return map[type] || map.default;
+  }, [type]);
+
   return (
-    <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-900/60 flex items-start gap-3">
+    <div className="group p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-900/60 backdrop-blur-sm flex items-start gap-3 transition hover:shadow-md hover:border-gray-300 dark:hover:border-gray-700">
       <div className="shrink-0">
-        {profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt={profile?.username || "User"} className="w-9 h-9 rounded-full object-cover border border-gray-200 dark:border-gray-700" />
-        ) : (
-          <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center border border-gray-200 dark:border-gray-700">
-            <UserCircle2 className="w-6 h-6 text-gray-500" />
-          </div>
-        )}
+        <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 grid place-items-center shadow-sm">
+          {content?.icon || <UserCircle2 className="w-5 h-5 text-gray-500" />}
+        </div>
       </div>
-      <div className="flex-1 min-w-0 space-y-2">
+      <div className="flex-1 min-w-0">
         {content?.render ? (
           content.render
         ) : (
@@ -292,26 +435,41 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
                 {content.text}
               </div>
             </div>
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+            <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+              <span className="shrink-0 font-semibold text-gray-900 dark:text-gray-100">{profile?.username || 'Someone'}</span>
+              <span className={`px-1.5 py-0.5 rounded-full font-medium ${badge.cls}`}>{badge.label}</span>
               <Clock className="w-3.5 h-3.5" />
               <span>{timeAgo(created_at)}</span>
             </div>
           </>
         )}
+        <div className="mt-2 border-t border-gray-200 dark:border-gray-800" />
         {/* Reactions */}
         <div className="mt-1 flex items-center gap-2">
           {REACTIONS.map(r => {
             const count = reactionCounts?.[r.key] || 0;
             const mine = myReactions?.includes(r.key);
+            const base = 'inline-flex items-center rounded-full border text-xs transition select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-indigo-500 dark:focus-visible:ring-indigo-400 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900';
+            const cls = mine
+              ? 'bg-pink-100 border-pink-300 text-pink-800 dark:bg-pink-900/30 dark:text-pink-200 dark:border-pink-700'
+              : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100/70 dark:hover:bg-gray-700/70';
             return (
               <button
                 key={r.key}
+                type="button"
                 onClick={() => onReact(activity.id, r.key, mine)}
-                className={`px-2 py-1 rounded-full text-xs border transition ${mine ? 'bg-pink-100 border-pink-300 text-pink-800 dark:bg-pink-900/30 dark:text-pink-200 dark:border-pink-700' : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'}`}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onReact(activity.id, r.key, mine); } }}
+                aria-pressed={mine}
+                aria-label={`${r.label}${count ? ` (${count})` : ''}`}
                 title={r.label}
+                className={`${base} px-2.5 py-1 ${cls}`}
               >
-                <span className="mr-1">{r.emoji}</span>
-                {count > 0 ? count : ''}
+                <span className="text-base leading-none">{r.emoji}</span>
+                {count > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${mine ? 'bg-pink-200/80 text-pink-900 dark:bg-pink-800/60 dark:text-pink-100' : 'bg-gray-200/80 text-gray-800 dark:bg-gray-700 dark:text-gray-100'}`}>
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -333,6 +491,7 @@ export default function ActivitiesPage({ mode = 'following' }) {
   const [hasMore, setHasMore] = useState(true);
   const limit = 20;
   const loaderRef = useRef(null);
+  const [followingIds, setFollowingIds] = useState(new Set());
   
 
   const fetchPage = useCallback(async (reset = false) => {
@@ -428,6 +587,109 @@ export default function ActivitiesPage({ mode = 'following' }) {
     }
   }, [user?.id]);
 
+  // Load following list (for filtering realtime in 'following' mode)
+  useEffect(() => {
+    let mounted = true;
+    if (!user?.id) {
+      setFollowingIds(new Set());
+      return;
+    }
+    (async () => {
+      try {
+        const { data, error } = await db.fetchUserFollowing(user.id);
+        if (!error && mounted) {
+          const ids = new Set((data || []).map(r => r.following_id));
+          setFollowingIds(ids);
+        }
+      } catch (_) {}
+    })();
+    return () => { mounted = false };
+  }, [user?.id]);
+
+  // Realtime subscription for new activities
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!supabase) return; // Supabase not configured
+
+    const channel = supabase
+      .channel('activities-feed-page')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'activities' },
+        async (payload) => {
+          try {
+            const act = payload.new;
+            if (!act) return;
+
+            // Filter by current view mode
+            if (viewMode === 'mine') {
+              if (act.user_id !== user.id) return;
+            } else {
+              // following mode: ignore my own and only people I follow
+              if (act.user_id === user.id) return;
+              if (!followingIds.has(act.user_id)) return;
+            }
+
+            // Fetch author's profile to attach for immediate UI display
+            let authorProfile = null;
+            try {
+              const { data } = await db.getUserProfile(act.user_id);
+              if (data) authorProfile = data;
+            } catch (_) {}
+
+            // Prepend if not already present
+            setActivities(prev => {
+              const exists = prev.some(a => a.id === act.id);
+              if (exists) return prev;
+              // Maintain created_at ordering (newest first)
+              const hydrated = authorProfile ? { ...act, profiles: [authorProfile] } : act;
+              const next = [hydrated, ...prev];
+              return next;
+            });
+
+            // Initialize reactions entry and fetch reactions for this activity
+            setReactionsMap(prev => ({ ...prev, [act.id]: prev[act.id] || { counts: {}, mine: [] } }));
+            try {
+              const { data: reacts } = await db.getActivityReactions([act.id]);
+              const counts = {};
+              const mine = [];
+              (reacts || []).forEach(r => {
+                counts[r.type] = (counts[r.type] || 0) + 1;
+                if (r.user_id === user.id && !mine.includes(r.type)) mine.push(r.type);
+              });
+              setReactionsMap(prev => ({ ...prev, [act.id]: { counts, mine } }));
+            } catch (_) {}
+
+            // Toast notification
+            let author = authorProfile?.username || 'Someone you follow';
+            const type = String(act.type || 'activity');
+            const pretty = (
+              type === 'task_completed' ? 'completed a task' :
+              type === 'movie_finished' ? 'finished a movie' :
+              type === 'movie_rated' ? `rated a movie ${act?.payload?.rating ?? ''}` :
+              type === 'media_added' ? ((act?.payload?.type || '').toLowerCase() === 'book' ? 'added a book' : 'added media') :
+              type === 'book_finished' ? 'finished a book' :
+              type === 'book_started' ? 'started a book' :
+              type === 'book_progress' ? 'updated a book progress' :
+              type === 'book_watchlist' ? 'saved a book' :
+              type === 'book_rated' ? `rated a book ${act?.payload?.rating ?? ''}` :
+              type === 'journal_created' ? 'wrote a journal entry' :
+              type === 'music_stat' ? 'shared music stats' :
+              'posted a new activity'
+            );
+            toast(`${author} ${pretty}`.trim());
+          } catch (_) {
+            // ignore
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, viewMode, followingIds]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <div className="relative p-6 space-y-6">
@@ -435,7 +697,7 @@ export default function ActivitiesPage({ mode = 'following' }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 shadow-lg">
-              <Sparkles className="w-7 h-7 text-white" />
+              <TrendingUp className="w-7 h-7 text-white" />
             </div>
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-teal-700 to-emerald-700 dark:from-teal-200 dark:to-emerald-300 bg-clip-text text-transparent">Activities</h1>
@@ -444,7 +706,7 @@ export default function ActivitiesPage({ mode = 'following' }) {
           </div>
           <div className="flex items-center gap-2">
             <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-              {['all','journal','movies','music'].map(t => (
+              {['all','journal','movies','music','books'].map(t => (
                 <button
                   key={t}
                   onClick={() => { setFilterType(t); setOffset(0); setHasMore(true); fetchPage(true); }}
@@ -492,6 +754,10 @@ export default function ActivitiesPage({ mode = 'following' }) {
                 if (filterType === 'all') return true;
                 if (filterType === 'movies') return ['media_added','movie_finished','movie_dropped','movie_watchlist','movie_rated'].includes(act.type);
                 if (filterType === 'music') return ['music_stat','now_playing'].includes(act.type);
+                if (filterType === 'books') return (
+                  ['book_started','book_progress','book_finished','book_watchlist','book_rated'].includes(act.type)
+                  || (act.type === 'media_added' && (act?.payload?.type || '').toLowerCase() === 'book')
+                );
                 if (filterType === 'tasks') return act.type === 'task_completed';
                 if (filterType === 'journal') return act.type === 'journal_created';
                 return true;
