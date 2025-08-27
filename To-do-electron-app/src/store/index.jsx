@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { auth, db, storage } from '../api/supabase.js';
+import { auth, db, storage, supabase } from '../api/supabase.js';
 
 export const useAuthStore = create(
   persist(
@@ -22,6 +22,57 @@ export const useAuthStore = create(
       setFollowers: (followers) => set({ followers }),
       setFollowing: (following) => set({ following }),
       setIsFollowing: (isFollowing) => set({ isFollowing }),
+
+      // Initialize session from Supabase (for OAuth and app startup)
+      initializeAuth: async () => {
+        if (!supabase) return;
+        set({ isLoading: true });
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) throw error;
+          
+          if (session?.user) {
+            // Fetch or create profile for OAuth users
+            const { data: existingProfile } = await db.getUserProfile(session.user.id);
+            let ensuredProfile = existingProfile;
+
+            if (!ensuredProfile) {
+              // Create profile for OAuth users
+              const metaUsername = session.user?.user_metadata?.username || session.user?.user_metadata?.full_name;
+              const emailPrefix = (session.user?.email || '').split('@')[0] || '';
+              const baseRaw = (metaUsername || emailPrefix || 'user').toString();
+              const sanitizedBase = baseRaw
+                .toLowerCase()
+                .replace(/[^a-z0-9_]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 20) || `user${String(session.user.id).slice(0, 6)}`;
+
+              let candidate = sanitizedBase;
+              for (let attempt = 0; attempt < 5; attempt++) {
+                const { data: taken } = await db.fetchUserProfile(candidate);
+                if (!taken) break;
+                candidate = `${sanitizedBase}${Math.floor(1000 + Math.random() * 9000)}`;
+              }
+
+              const { data: createdProfile } = await db.updateProfile({
+                id: session.user.id,
+                username: candidate,
+                full_name: session.user?.user_metadata?.full_name || null,
+                avatar_url: session.user?.user_metadata?.avatar_url || null,
+              });
+              ensuredProfile = createdProfile || null;
+            }
+
+            set({ user: session.user, profile: ensuredProfile, isLoading: false });
+          } else {
+            set({ user: null, profile: null, isLoading: false });
+          }
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+          set({ error: error.message, isLoading: false });
+        }
+      },
 
       signIn: async (email, password) => {
         set({ isLoading: true, error: null })

@@ -37,7 +37,12 @@ function AppLayout() {
   const [showNotifications, setShowNotifications] = useState(true); // banner visibility
   const [showNotificationsPopup, setShowNotificationsPopup] = useState(false);
   const [followingIds, setFollowingIds] = useState(new Set());
-  const { user, signOut } = useAuthStore();
+  const { user, signOut, initializeAuth } = useAuthStore();
+
+  // Initialize authentication on app start
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
 
   // Load who I already follow so UI can hide Follow back appropriately
   useEffect(() => {
