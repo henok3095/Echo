@@ -30,7 +30,10 @@ export const auth = {
   signInWithGoogle: async () => {
     if (!supabase) return { data: null, error: new Error('Supabase not configured') };
     try {
-      const redirectTo = (siteUrl || runtimeOrigin) ? `${(siteUrl || runtimeOrigin)}/auth/callback` : undefined;
+      // Always use runtime origin for production deployments
+      const redirectTo = runtimeOrigin ? `${runtimeOrigin}/auth/callback` : 
+                        siteUrl ? `${siteUrl}/auth/callback` : 
+                        undefined;
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -87,7 +90,9 @@ export const auth = {
   
   signUp: async (email, password, userData) => {
     if (!supabase) return { data: null, error: new Error('Supabase not configured') };
-    const redirectTo = (siteUrl || runtimeOrigin) ? `${(siteUrl || runtimeOrigin)}/auth/callback` : undefined;
+    const redirectTo = runtimeOrigin ? `${runtimeOrigin}/auth/callback` : 
+                      siteUrl ? `${siteUrl}/auth/callback` : 
+                      undefined;
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -105,7 +110,9 @@ export const auth = {
   // Proper resend verification email for signup
   resendVerification: async (email) => {
     if (!supabase) return { data: null, error: new Error('Supabase not configured') };
-    const redirectTo = (siteUrl || runtimeOrigin) ? `${(siteUrl || runtimeOrigin)}/auth/callback` : undefined;
+    const redirectTo = runtimeOrigin ? `${runtimeOrigin}/auth/callback` : 
+                      siteUrl ? `${siteUrl}/auth/callback` : 
+                      undefined;
     const { data, error } = await supabase.auth.resend({
       type: 'signup',
       email,
