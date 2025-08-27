@@ -120,7 +120,6 @@ export default function AuthModal({ isOpen, onClose }) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <span className="inline-block bg-gradient-to-r from-blue-500 to-fuchsia-500 bg-clip-text text-transparent text-3xl font-extrabold tracking-tight select-none">Echo</span>
-              <Sparkles className="w-6 h-6 text-fuchsia-400 animate-pulse" />
             </div>
             <button
               onClick={onClose}
@@ -131,15 +130,9 @@ export default function AuthModal({ isOpen, onClose }) {
             </button>
           </div>
           <div className="flex flex-col items-center mb-6">
-            <div className="rounded-full bg-gradient-to-tr from-blue-400 to-fuchsia-400 p-3 mb-2 shadow-lg">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
               {isSignUp ? 'Create your Echo account' : 'Welcome to Echo'}
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              {isSignUp ? 'Sign up to start your journey.' : 'Sign in to your productivity & taste tracker.'}
-            </p>
           </div>
 
           {/* Social login */}
