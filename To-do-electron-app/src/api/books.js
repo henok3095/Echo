@@ -55,3 +55,42 @@ export function normalizeBook(item) {
     googleBooksId: item.id,
   };
 }
+
+// Fetch a single Google Books volume and normalize it
+export async function getBookDetails(volumeId) {
+  if (!volumeId) throw new Error('Missing volumeId');
+  const url = `https://www.googleapis.com/books/v1/volumes/${encodeURIComponent(volumeId)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch book details');
+  const json = await res.json();
+  return normalizeBook(json);
+}
+
+// Return counts for pages and chapters (Google Books does not expose chapters)
+export async function getPageAndChapters(volumeId) {
+  const book = await getBookDetails(volumeId);
+  return {
+    pageCount: book.pageCount ?? null,
+    chapters: null,
+  };
+}
+
+// Best-effort: search by title and author to get a pageCount when volume ID is unknown
+export async function findPageCountByTitleAuthor(title, author) {
+  const q = [];
+  if (title) q.push(`intitle:${JSON.stringify(title).slice(1, -1)}`);
+  if (author) q.push(`inauthor:${JSON.stringify(author).slice(1, -1)}`);
+  if (q.length === 0) return null;
+  const url = new URL('https://www.googleapis.com/books/v1/volumes');
+  url.searchParams.set('q', q.join('+'));
+  url.searchParams.set('maxResults', '3');
+  const res = await fetch(url.toString());
+  if (!res.ok) return null;
+  const json = await res.json();
+  const items = Array.isArray(json.items) ? json.items : [];
+  for (const item of items) {
+    const v = item?.volumeInfo || {};
+    if (typeof v.pageCount === 'number' && v.pageCount > 0) return v.pageCount;
+  }
+  return null;
+}

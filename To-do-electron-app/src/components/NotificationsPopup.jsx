@@ -3,6 +3,8 @@ import { Bell, UserPlus, Trash2, X } from 'lucide-react';
 
 export default function NotificationsPopup({
   notifications = [],
+  followingIds = new Set(),
+  onFollowBack,
   onDismiss,
   onClearAll,
   onClose,
@@ -32,7 +34,7 @@ export default function NotificationsPopup({
             <span className="text-sm font-semibold">Notifications</span>
             {notifications.length > 0 && (
               <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600 text-white">
-                {notifications.length > 99 ? '99+' : notifications.length}
+                {notifications.length}
               </span>
             )}
           </div>
@@ -65,14 +67,44 @@ export default function NotificationsPopup({
               {notifications.map((n) => (
                 <li key={n.id} className="px-4 py-3 flex items-start gap-3">
                   {n.type === 'follow' ? (
-                    <UserPlus className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                    n?.actor?.avatar_url ? (
+                      <img src={n.actor.avatar_url} alt={n.actor.username || 'avatar'} className="w-7 h-7 rounded-full object-cover mt-0.5" />
+                    ) : (
+                      <UserPlus className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-1" />
+                    )
                   ) : (
-                    <Bell className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-0.5" />
+                    <Bell className="w-4 h-4 text-blue-600 dark:text-blue-400 mt-1" />
                   )}
                   <div className="flex-1">
-                    <div className="text-sm text-gray-800 dark:text-gray-100">{n.message}</div>
-                    {n.time && (
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{n.time}</div>
+                    <div className="text-sm text-gray-800 dark:text-gray-100">
+                      {n.type === 'follow' && n.actor ? (
+                        <span>
+                          <a
+                            href={`/profile/${encodeURIComponent(n.actor.username || n.actor.id)}`}
+                            className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                          >
+                            {n.actor.username || 'Someone'}
+                          </a>
+                          <span> started following you</span>
+                        </span>
+                      ) : (
+                        n.message
+                      )}
+                    </div>
+                    {(n.created_at || n.time) && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {n.time || new Date(n.created_at).toLocaleString()}
+                      </div>
+                    )}
+                    {n.type === 'follow' && n.actor && !followingIds.has?.(n.actor.id) && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => onFollowBack?.(n.actor.id)}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" /> Follow back
+                        </button>
+                      </div>
                     )}
                   </div>
                   <button

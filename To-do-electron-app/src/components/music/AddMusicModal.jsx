@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Star } from 'lucide-react';
 import { searchMusic } from '../../api/musicSearch';
 import { searchLastfmTracks, searchLastfmAlbums } from '../../api/lastfm';
+import { formatRating } from '../../utils/ratings.js';
 
 export default function AddMusicModal({ 
   isOpen, 
@@ -276,7 +277,7 @@ export default function AddMusicModal({
           {/* Rating */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Rating (1-10)
+              Rating (0–5)
             </label>
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
@@ -293,7 +294,7 @@ export default function AddMusicModal({
                 </button>
               ))}
               <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                {formData.rating > 0 ? `${formData.rating}/10` : 'No rating'}
+                {formData.rating > 0 ? formatRating(formData.rating) : 'No rating'}
               </span>
             </div>
           </div>

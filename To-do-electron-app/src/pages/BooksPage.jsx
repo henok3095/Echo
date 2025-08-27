@@ -447,13 +447,13 @@ export default function BooksPage() {
             titleGradient="from-pink-600 via-orange-600 to-red-600"
             centered={true}
           />
-          {/* Actions */}
+          {/* Actions under title */}
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={() => setShowLogModal(true)}
               className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
             >
-              <Clock className="w-5 h-5" />
+              <Calendar className="w-5 h-5" />
               <span className="font-medium">Log Reading</span>
             </button>
             <button
@@ -461,13 +461,13 @@ export default function BooksPage() {
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
             >
               <Plus className="w-5 h-5" />
-              <span className="font-medium">Add Book</span>
+              <span className="font-medium">Add</span>
             </button>
           </div>
         </div>
 
-        {/* Enhanced Stats Cards (top) */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        {/* Stats (match Series: Total, Reading, Completed) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 border-blue-200/50 dark:border-blue-800/30">
             <div className="flex items-center justify-between">
               <div>
@@ -477,17 +477,6 @@ export default function BooksPage() {
               <BookOpen className="w-8 h-8 text-blue-500" />
             </div>
           </Card>
-          
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 border-green-200/50 dark:border-green-800/30">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-600 dark:text-green-400 text-sm font-medium mb-1">Read</p>
-                <p className="text-3xl font-bold text-green-900 dark:text-green-100">{shelfCounts.read}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-          </Card>
-          
           <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10 border-purple-200/50 dark:border-purple-800/30">
             <div className="flex items-center justify-between">
               <div>
@@ -497,14 +486,13 @@ export default function BooksPage() {
               <Clock className="w-8 h-8 text-purple-500" />
             </div>
           </Card>
-          
-          <Card className="p-6 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/10 border-amber-200/50 dark:border-amber-800/30">
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 border-green-200/50 dark:border-green-800/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-600 dark:text-amber-400 text-sm font-medium mb-1">To Read</p>
-                <p className="text-3xl font-bold text-amber-900 dark:text-amber-100">{shelfCounts.to_read}</p>
+                <p className="text-green-600 dark:text-green-400 text-sm font-medium mb-1">Completed</p>
+                <p className="text-3xl font-bold text-green-900 dark:text-green-100">{shelfCounts.read}</p>
               </div>
-              <Bookmark className="w-8 h-8 text-amber-500" />
+              <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
           </Card>
         </div>
@@ -541,13 +529,13 @@ export default function BooksPage() {
                       <Star className="w-6 h-6 text-white" />
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{miniStats.avgRating}/10</p>
+                      <p className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">{formatRating(miniStats.avgRating)}</p>
                       <p className="text-sm text-yellow-600 dark:text-yellow-400">Avg Rating</p>
                     </div>
                   </div>
                   <div className="flex gap-1 justify-end">
                     {[1,2,3,4,5].map(star => (
-                      <Star key={star} className={`w-4 h-4 ${star <= Math.round(miniStats.avgRating/2) ? 'text-yellow-500 fill-current' : 'text-gray-300 dark:text-gray-600'}`} />
+                      <Star key={star} className={`w-4 h-4 ${star <= Math.round(dbToUiRating(miniStats.avgRating)) ? 'text-yellow-500 fill-current' : 'text-gray-300 dark:text-gray-600'}`} />
                     ))}
                   </div>
                   <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2 text-right">Based on {miniStats.ratedCount} rated</p>
@@ -701,20 +689,20 @@ export default function BooksPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Rating (optional)</label>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button
-                        key={star}
-                        onClick={() => setRating(star)}
-                        className={`w-8 h-8 ${star <= rating ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'} hover:text-yellow-400 transition-colors`}
-                      >
-                        <Star className="w-full h-full fill-current" />
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={5}
+                      step={0.25}
+                      value={Number(rating) || 0}
+                      onChange={(e) => setRating(parseFloat(e.target.value))}
+                      className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {formatRating(uiToDbRating(rating || 0))}
+                    </span>
                   </div>
-                  {rating > 0 && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{rating}/5 stars</p>
-                  )}
                 </div>
                 
                 <div>

@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import TaskCard from "../components/TaskCard";
 import MediaCard from "../components/MediaCard";
 import JournalBox from "../components/JournalBox";
-import MoodTracker from "../components/MoodTracker";
 import ChartSummary from "../components/ChartSummary";
 import CalendarSection from "../components/CalendarSection";
 
@@ -19,7 +18,6 @@ const demoMedia = [
 
 export default function HomePage({ username, date }) {
   const [journal, setJournal] = useState("");
-  const [mood, setMood] = useState("neutral");
 
   return (
     <div className="p-6 space-y-6">
@@ -51,7 +49,6 @@ export default function HomePage({ username, date }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-4">
           <JournalBox value={journal} onChange={setJournal} placeholder="Quick Journal or Quote of the Day..." />
-          <MoodTracker mood={mood} onChange={setMood} />
         </div>
         <div className="space-y-4">
           <ChartSummary />

@@ -293,8 +293,10 @@ export default function TasksPage() {
           </div>
           <div className="relative" ref={dropdownRef}>
             <button
+              type="button"
               onClick={() => setShowAddDropdown(!showAddDropdown)}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              style={{ pointerEvents: showAddDropdown ? 'none' : 'auto' }}
             >
               <Plus className="w-4 h-4" />
               Add New
@@ -302,12 +304,17 @@ export default function TasksPage() {
             </button>
             
             {showAddDropdown && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg z-50">
+              <div
+                className="absolute right-0 top-full mt-6 pt-2 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-2xl pointer-events-auto"
+                style={{ zIndex: 9999 }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+              >
                 <button
-                  onClick={() => {
-                    setShowAddTask(true);
-                    setShowAddDropdown(false);
-                  }}
+                  type="button"
+                  onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); setShowAddTask(true); setShowAddDropdown(false); }}
+                  onMouseDown={(e) => { e.stopPropagation(); setShowAddTask(true); setShowAddDropdown(false); }}
+                  onClick={(e) => { e.stopPropagation(); setShowAddTask(true); setShowAddDropdown(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-t-lg"
                 >
                   <Plus className="w-4 h-4 text-blue-600" />
@@ -317,10 +324,10 @@ export default function TasksPage() {
                   </div>
                 </button>
                 <button
-                  onClick={() => {
-                    setShowAddIdea(true);
-                    setShowAddDropdown(false);
-                  }}
+                  type="button"
+                  onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); setShowAddIdea(true); setShowAddDropdown(false); }}
+                  onMouseDown={(e) => { e.stopPropagation(); setShowAddIdea(true); setShowAddDropdown(false); }}
+                  onClick={(e) => { e.stopPropagation(); setShowAddIdea(true); setShowAddDropdown(false); }}
                   className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors rounded-b-lg"
                 >
                   <Lightbulb className="w-4 h-4 text-purple-600" />

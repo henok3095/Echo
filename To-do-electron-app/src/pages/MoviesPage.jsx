@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Plus, 
   Search, 
@@ -21,6 +22,7 @@ import { searchMulti, getMovieDetails, getTVDetails } from "../api/tmdb";
 import Card from "../components/Card";
 import PageHeader from "../components/PageHeader";
 import toast from 'react-hot-toast';
+import { uiToDbRating, dbToUiRating, formatRating } from "../utils/ratings";
 // Removed MediaStreakTracker import as streak display is no longer used
 
 const MEDIA_TYPES = [
@@ -36,6 +38,7 @@ const STATUS_OPTIONS = [
 ];
 
 export default function MoviesPage() {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { mediaEntries, addMediaEntry, fetchMediaEntries, isLoading } = useMediaStore();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -66,7 +69,7 @@ export default function MoviesPage() {
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [searchResults, setSearchResults] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(0); // UI scale 0-5 in 0.25 steps
   const [review, setReview] = useState('');
   const [status, setStatus] = useState('to_watch');
   const [isSearching, setIsSearching] = useState(false);
@@ -85,16 +88,10 @@ export default function MoviesPage() {
   const [selectedMovieForWatchDate, setSelectedMovieForWatchDate] = useState(null);
   const [watchDate, setWatchDate] = useState(new Date().toISOString().split('T')[0]);
   
-  // Creative feature: Movie Mood Tracker
-  const [showMoodTrackerModal, setShowMoodTrackerModal] = useState(false);
-  const [movieMoods, setMovieMoods] = useState({
-    happy: [], sad: [], excited: [], relaxed: [], nostalgic: [], adventurous: []
-  });
+  // Movie Mood Tracker removed per request
 
-  // Filter only movies and TV shows
-  const movieEntries = mediaEntries.filter(entry => 
-    entry.type === 'movie' || entry.type === 'tv'
-  );
+  // Filter only movies (do not show TV entries on Movies page)
+  const movieEntries = mediaEntries.filter(entry => entry.type === 'movie');
 
   useEffect(() => {
     fetchMediaEntries();
@@ -179,7 +176,8 @@ export default function MoviesPage() {
     setSearchResults([]);
     try {
       const results = await searchMulti(searchQuery);
-      setSearchResults(results.slice(0, 10));
+      const onlyMovies = (results || []).filter(r => r.media_type === 'movie');
+      setSearchResults(onlyMovies.slice(0, 10));
     } catch (error) {
       toast.error('Failed to search TMDB. Please try again.');
       setSearchResults([]);
@@ -188,16 +186,15 @@ export default function MoviesPage() {
     }
   };
 
-  // Select a movie/TV show from search results - Enhanced flow
+  // Select a movie from search results - block TV on Movies page
   const handleSelectMedia = async (item) => {
     setIsSearching(true);
     try {
-      let details;
-      if (item.media_type === 'movie') {
-        details = await getMovieDetails(item.id);
-      } else {
-        details = await getTVDetails(item.id);
+      if (item.media_type !== 'movie') {
+        toast.error('This is a TV series. Please add it from the Series page.');
+        return;
       }
+      const details = await getMovieDetails(item.id);
       const movieData = {
         ...item,
         director: details.director || (details.created_by && details.created_by[0]?.name) || '',
@@ -238,7 +235,7 @@ export default function MoviesPage() {
       // Prevent duplicates
       const dup = findDuplicateMedia(
         movie.title || movie.name,
-        movie.media_type,
+        'movie',
         movie.id,
         movie.release_date || movie.first_air_date
       );
@@ -248,7 +245,7 @@ export default function MoviesPage() {
       }
       const mediaData = {
         title: movie.title || movie.name,
-        type: movie.media_type,
+        type: 'movie',
         status: 'to_watch',
         rating: null,
         review: null,
@@ -259,7 +256,6 @@ export default function MoviesPage() {
         overview: movie.overview || '',
         tmdb_id: movie.id,
         visibility: 'private',
-        added_to_watch_diary: new Date().toISOString(),
       };
       await addMediaEntry(mediaData);
       toast.success(`${mediaData.title} added to your watch diary! 📚`);
@@ -276,7 +272,7 @@ export default function MoviesPage() {
       // Prevent duplicates
       const dup = findDuplicateMedia(
         movie.title || movie.name,
-        movie.media_type,
+        'movie',
         movie.id,
         movie.release_date || movie.first_air_date
       );
@@ -286,7 +282,7 @@ export default function MoviesPage() {
       }
       const mediaData = {
         title: movie.title || movie.name,
-        type: movie.media_type,
+        type: 'movie',
         status: status,
         rating: null,
         review: null,
@@ -315,7 +311,7 @@ export default function MoviesPage() {
       // Prevent duplicates
       const dup = findDuplicateMedia(
         pendingMovie.title || pendingMovie.name,
-        pendingMovie.media_type,
+        'movie',
         pendingMovie.id,
         pendingMovie.release_date || pendingMovie.first_air_date
       );
@@ -325,9 +321,9 @@ export default function MoviesPage() {
       }
       const mediaData = {
         title: pendingMovie.title || pendingMovie.name,
-        type: pendingMovie.media_type,
+        type: 'movie',
         status: 'watched',
-        rating: rating || null,
+        rating: uiToDbRating(rating), // Convert 0-5 to 0-10
         review: review.trim() || null,
         tags: typeof pendingMovie.tags === 'string' ? pendingMovie.tags.split(',').map(tag => tag.trim()).filter(Boolean) : pendingMovie.tags || [],
         director: pendingMovie.director || '',
@@ -339,7 +335,7 @@ export default function MoviesPage() {
         watch_date: new Date().toISOString(),
       };
       await addMediaEntry(mediaData);
-      toast.success(`${mediaData.title} added as watched with ${rating}/10 rating! ⭐`);
+      toast.success(`${mediaData.title} added as watched with ${rating}/5 rating! ⭐`);
       resetModalStates();
       await fetchMediaEntries();
     } catch (error) {
@@ -369,11 +365,15 @@ export default function MoviesPage() {
       toast.error('Media title is required');
       return;
     }
+    if (selectedMedia.media_type && selectedMedia.media_type !== 'movie') {
+      toast.error('This is a TV series. Please add it from the Series page.');
+      return;
+    }
     try {
       // Prevent duplicates
       const dup = findDuplicateMedia(
         selectedMedia.title || selectedMedia.name,
-        selectedMedia.media_type,
+        'movie',
         selectedMedia.id,
         selectedMedia.release_date || selectedMedia.first_air_date
       );
@@ -383,9 +383,9 @@ export default function MoviesPage() {
       }
       const mediaData = {
         title: selectedMedia.title || selectedMedia.name,
-        type: selectedMedia.media_type,
+        type: 'movie',
         status,
-        rating: rating || null,
+        rating: uiToDbRating(rating), // Convert 0-5 to 0-10
         review: review.trim() || null,
         tags: typeof selectedMedia.tags === 'string' ? selectedMedia.tags.split(',').map(tag => tag.trim()).filter(Boolean) : selectedMedia.tags || [],
         director: selectedMedia.director || '',
@@ -442,8 +442,8 @@ export default function MoviesPage() {
         {/* Header */}
         <div className="space-y-4">
           <PageHeader 
-            title="Movies & TV Shows"
-            subtitle="Track your favorite movies and series"
+            title="Movies"
+            subtitle="Track your favorite movies"
             Icon={Film}
             iconGradient="from-pink-500 to-orange-600"
             titleGradient="from-pink-600 via-orange-600 to-red-600"
@@ -452,6 +452,23 @@ export default function MoviesPage() {
 
           {/* Actions under title */}
           <div className="flex items-center justify-center gap-3">
+            {/* Segmented toggle: Movies | Series */}
+            <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+              <button
+                className="px-5 py-3 flex items-center gap-2 bg-gradient-to-r from-pink-600 to-orange-600 text-white font-medium"
+                aria-current="page"
+              >
+                <Film className="w-5 h-5" />
+                Movies
+              </button>
+              <button
+                onClick={() => navigate('/series')}
+                className="px-5 py-3 flex items-center gap-2 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Tv className="w-5 h-5" />
+                Series
+              </button>
+            </div>
             <button
               onClick={() => setShowWatchDiaryModal(true)}
               className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
@@ -534,12 +551,7 @@ export default function MoviesPage() {
           >
             Movies
           </button>
-          <button
-            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'tv' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/20'}`}
-            onClick={() => setFilter('tv')}
-          >
-            Series
-          </button>
+          
           {/* 1. Add 'Favorites' to the filter group: */}
           <button
             className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'favorites' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-pink-50 dark:hover:bg-pink-900/20'}`}
@@ -605,7 +617,7 @@ export default function MoviesPage() {
                     <div className="flex items-center gap-1 mb-2">
                       <Star className="w-4 h-4 text-yellow-500 fill-current" />
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {movie.rating}/10
+                        {formatRating(movie.rating, { outOfFive: true, decimals: 2 })}
                       </span>
                     </div>
                   )}
@@ -677,8 +689,8 @@ export default function MoviesPage() {
             <div className="p-6 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 rounded-3xl inline-block mb-6">
               <Film className="w-16 h-16 text-purple-500 mx-auto" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No movies or shows yet</h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">Start building your watchlist by adding your first movie or TV show!</p>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">No movies yet</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">Start building your watchlist by adding your first movie!</p>
             <button
               onClick={() => setShowAddModal(true)}
               className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 hover:scale-105"
@@ -694,7 +706,7 @@ export default function MoviesPage() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add Movie or TV Show</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Add Movie</h2>
               <button
                 onClick={() => {
                   setShowAddModal(false);
@@ -722,7 +734,7 @@ export default function MoviesPage() {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="Search for movies and TV shows..."
+                          placeholder="Search for movies..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -840,24 +852,22 @@ export default function MoviesPage() {
                   {/* Rating */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Rating (1-10)
+                      Rating (0-5)
                     </label>
-                    <div className="flex items-center gap-2">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                        <button
-                          key={star}
-                          onClick={() => setRating(star)}
-                          className={`p-1 rounded transition-colors ${
-                            star <= rating
-                              ? 'text-yellow-500'
-                              : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400'
-                          }`}
-                        >
-                          <Star className="w-6 h-6 fill-current" />
-                        </button>
-                      ))}
-                      <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                        {rating > 0 ? `${rating}/10` : 'No rating'}
+                    <div className="px-1">
+                      <input
+                        type="range"
+                        min="0"
+                        max="5"
+                        step="0.25"
+                        value={rating}
+                        onChange={(e) => setRating(Number(e.target.value))}
+                        className="w-full accent-yellow-500"
+                      />
+                    </div>
+                    <div className="text-center mt-1">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {rating > 0 ? `${rating.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')}/5` : 'No rating'}
                       </span>
                     </div>
                   </div>
@@ -905,17 +915,6 @@ export default function MoviesPage() {
 
       {/* Floating Action Buttons Container */}
       <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-50 flex flex-col gap-3">
-        {/* Movie Mood Tracker - Creative Feature */}
-        <button
-          onClick={() => setShowMoodTrackerModal(true)}
-          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full shadow-lg p-4 md:p-5 flex items-center justify-center transition-all duration-200 group"
-          title="Movie Mood Tracker"
-          aria-label="Movie Mood Tracker"
-          style={{ boxShadow: '0 4px 24px 0 rgba(147, 51, 234, 0.3)' }}
-        >
-          <Heart className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" fill="currentColor" />
-        </button>
-
         {/* Top 10 Rated Movies Button */}
         <button
           onClick={() => setShowTop10Modal(true)}
@@ -972,7 +971,7 @@ export default function MoviesPage() {
                         <div className="absolute top-3 right-3">
                           <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300`}>
                             <Star className="w-3 h-3" />
-                            {movie.rating}/10
+                            {formatRating(movie.rating, { outOfFive: true, decimals: 2 })}
                           </div>
                         </div>
                         {movie.type && (
@@ -1065,7 +1064,9 @@ export default function MoviesPage() {
                           {movie.rating && (
                             <div className="flex items-center gap-1 mt-1">
                               <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                              <span className="text-sm text-gray-700 dark:text-gray-300">{movie.rating}/10</span>
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {formatRating(movie.rating, { outOfFive: true, decimals: 2 })}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -1324,26 +1325,22 @@ export default function MoviesPage() {
                 {/* Rating */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 text-center">
-                    Rating (1-10)
+                    Rating (0-5)
                   </label>
-                  <div className="flex items-center justify-center gap-2">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((star) => (
-                      <button
-                        key={star}
-                        onClick={() => setRating(star)}
-                        className={`p-2 rounded-lg transition-all duration-200 hover:scale-110 ${
-                          star <= rating
-                            ? 'text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20'
-                            : 'text-gray-300 dark:text-gray-600 hover:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/10'
-                        }`}
-                      >
-                        <Star className="w-7 h-7 fill-current" />
-                      </button>
-                    ))}
+                  <div className="px-4">
+                    <input
+                      type="range"
+                      min="0"
+                      max="5"
+                      step="0.25"
+                      value={rating}
+                      onChange={(e) => setRating(Number(e.target.value))}
+                      className="w-full accent-yellow-500"
+                    />
                   </div>
                   <div className="text-center mt-2">
                     <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {rating > 0 ? `${rating}/10` : 'No rating yet'}
+                      {rating > 0 ? `${rating.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')}/5` : 'No rating yet'}
                     </span>
                   </div>
                 </div>
@@ -1388,113 +1385,7 @@ export default function MoviesPage() {
 
 
 
-      {/* Movie Mood Tracker Modal */}
-      {showMoodTrackerModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
-            <button
-              onClick={() => setShowMoodTrackerModal(false)}
-              className="absolute top-4 right-4 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              aria-label="Close Mood Tracker"
-            >
-              <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-            </button>
-            
-            <div className="p-8 pb-4 flex items-center gap-3">
-              <Heart className="w-8 h-8 text-purple-500" fill="currentColor" />
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Movie Mood Tracker</h2>
-            </div>
-            
-            <div className="px-8 pb-8">
-              <p className="text-gray-600 dark:text-gray-400 mb-6">
-                Discover movies based on your current mood! See what you've enjoyed in different emotional states.
-              </p>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[
-                  { mood: 'happy', emoji: '😊', color: 'yellow', label: 'Happy & Uplifting' },
-                  { mood: 'sad', emoji: '😢', color: 'blue', label: 'Emotional & Deep' },
-                  { mood: 'excited', emoji: '🤩', color: 'red', label: 'Action & Thrills' },
-                  { mood: 'relaxed', emoji: '😌', color: 'green', label: 'Calm & Peaceful' },
-                  { mood: 'nostalgic', emoji: '🥺', color: 'purple', label: 'Nostalgic & Classic' },
-                  { mood: 'adventurous', emoji: '🌟', color: 'orange', label: 'Adventure & Fantasy' }
-                ].map(({ mood, emoji, color, label }) => {
-                  const moodMovies = movieEntries.filter(movie => {
-                    if (!movie.tags) return false;
-                    const tags = Array.isArray(movie.tags) ? movie.tags : movie.tags.split(',').map(t => t.trim());
-                    
-                    // Mood-based tag matching
-                    const moodKeywords = {
-                      happy: ['comedy', 'family', 'animation', 'musical', 'romance'],
-                      sad: ['drama', 'tragedy', 'documentary'],
-                      excited: ['action', 'thriller', 'adventure', 'sci-fi'],
-                      relaxed: ['documentary', 'nature', 'slice of life'],
-                      nostalgic: ['classic', 'period', 'historical', 'vintage'],
-                      adventurous: ['adventure', 'fantasy', 'sci-fi', 'western']
-                    };
-                    
-                    return moodKeywords[mood]?.some(keyword => 
-                      tags.some(tag => tag.toLowerCase().includes(keyword.toLowerCase()))
-                    ) || false;
-                  });
-                  
-                  return (
-                    <div key={mood} className={`p-6 rounded-xl border-2 bg-gradient-to-br from-${color}-50 to-${color}-100 dark:from-${color}-900/20 dark:to-${color}-800/10 border-${color}-200 dark:border-${color}-800/30`}>
-                      <div className="text-center mb-4">
-                        <div className="text-4xl mb-2">{emoji}</div>
-                        <h3 className={`font-bold text-${color}-700 dark:text-${color}-300 mb-1`}>{label}</h3>
-                        <p className={`text-sm text-${color}-600 dark:text-${color}-400`}>
-                          {moodMovies.length} movies
-                        </p>
-                      </div>
-                      
-                      {moodMovies.length > 0 && (
-                        <div className="space-y-2">
-                          {moodMovies.slice(0, 3).map(movie => (
-                            <div key={movie.id} className="flex items-center gap-2 text-xs">
-                              <div className="w-2 h-2 bg-current rounded-full opacity-60"></div>
-                              <span className={`text-${color}-700 dark:text-${color}-300 truncate`}>
-                                {movie.title}
-                              </span>
-                              {movie.rating && (
-                                <span className={`text-${color}-600 dark:text-${color}-400 ml-auto`}>
-                                  ⭐{movie.rating}
-                                </span>
-                              )}
-                            </div>
-                          ))}
-                          {moodMovies.length > 3 && (
-                            <div className={`text-xs text-${color}-600 dark:text-${color}-400 text-center pt-1`}>
-                              +{moodMovies.length - 3} more
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      {moodMovies.length === 0 && (
-                        <div className={`text-xs text-${color}-500 dark:text-${color}-400 text-center opacity-75`}>
-                          No movies yet for this mood
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              
-              <div className="mt-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl border border-purple-200 dark:border-purple-800/30">
-                <h3 className="font-bold text-purple-700 dark:text-purple-300 mb-2 flex items-center gap-2">
-                  <Heart className="w-5 h-5" fill="currentColor" />
-                  Mood Insights
-                </h3>
-                <p className="text-sm text-purple-600 dark:text-purple-400">
-                  Your movie preferences are automatically categorized by mood based on genres and tags. 
-                  This helps you find the perfect movie for any emotional state! 🎬✨
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+      {/* Movie Mood Tracker removed */}
+      </div>
+    );
 }

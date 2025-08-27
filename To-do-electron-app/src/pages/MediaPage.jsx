@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatRating } from '../utils/ratings.js';
 import { useMediaStore } from '../store/index.jsx';
 import { Plus, Film, Music, Star, Search, Filter, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -256,7 +257,7 @@ export default function MediaPage() {
             {media.rating > 0 && (
               <div className="absolute top-3 right-3 bg-black/70 text-white px-2 py-1 rounded-lg text-sm font-medium flex items-center gap-1">
                 <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                {media.rating}/10
+                {formatRating(media.rating)}
               </div>
             )}
             
@@ -290,7 +291,7 @@ export default function MediaPage() {
                 {renderStars(media.rating)}
               </div>
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {media.rating}/10
+                {formatRating(media.rating)}
               </span>
             </div>
           )}

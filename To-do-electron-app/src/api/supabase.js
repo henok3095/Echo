@@ -249,9 +249,15 @@ export const db = {
   // Follow a user
   followUser: async (currentUserId, userId) => {
     if (!supabase) return { error: new Error('Supabase not configured') };
+    if (!currentUserId || !userId) return { error: new Error('Missing user ids') };
+    if (currentUserId === userId) return { error: new Error('Cannot follow yourself') };
+    // Idempotent: ignore duplicate constraint violations on (follower_id, following_id)
     const { error } = await supabase
       .from('follows')
-      .insert([{ follower_id: currentUserId, following_id: userId }]);
+      .upsert(
+        [{ follower_id: currentUserId, following_id: userId }],
+        { onConflict: 'follower_id,following_id', ignoreDuplicates: true }
+      );
     return { error };
   },
 
@@ -295,6 +301,17 @@ export const db = {
       .select()
       .single();
     return { data, error };
+  },
+
+  // Delete current user's profile by id
+  deleteProfile: async (userId) => {
+    if (!supabase) return { error: new Error('Supabase not configured') };
+    if (!userId) return { error: new Error('Missing userId') };
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+    return { error };
   },
 
   // Memory methods
@@ -471,9 +488,15 @@ export const db = {
 
   createTask: async (taskData) => {
     if (!supabase) return { data: null, error: new Error('Supabase not configured') };
+    // Clean up empty date strings to prevent database errors
+    const cleanedTask = { ...taskData };
+    if (cleanedTask.due_date === '') {
+      cleanedTask.due_date = null;
+    }
+
     const { data, error } = await supabase
       .from('tasks')
-      .insert([taskData])
+      .insert([cleanedTask])
       .select();
     return { data, error };
   },
@@ -594,6 +617,38 @@ export const db = {
       .single();
     
     return { data, error };
+  },
+
+  // Watching sessions (TV progress)
+  listWatchingSessions: async (userId, mediaId) => {
+    if (!supabase) return { data: [], error: new Error('Supabase not configured') };
+    if (!userId || !mediaId) return { data: [], error: new Error('Missing userId or mediaId') };
+    const { data, error } = await supabase
+      .from('watching_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('media_id', mediaId)
+      .order('date', { ascending: true });
+    return { data: data || [], error };
+  },
+
+  createWatchingSession: async (session) => {
+    if (!supabase) return { data: null, error: new Error('Supabase not configured') };
+    const { data, error } = await supabase
+      .from('watching_sessions')
+      .insert([session])
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  deleteWatchingSession: async (id) => {
+    if (!supabase) return { error: new Error('Supabase not configured') };
+    const { error } = await supabase
+      .from('watching_sessions')
+      .delete()
+      .eq('id', id);
+    return { error };
   },
 
 };

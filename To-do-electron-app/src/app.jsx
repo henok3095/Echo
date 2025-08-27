@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ActivitiesPage from "./pages/ActivitiesPage";
 import TasksPage from "./pages/TasksPage";
 import MoviesPage from "./pages/MoviesPage";
+import SeriesPage from "./pages/SeriesPage";
 import MusicPage from "./pages/MusicPage_clean";
 import JournalPage from "./pages/JournalPage";
 import BooksPage from "./pages/BooksPage";
@@ -32,11 +33,31 @@ function AppLayout() {
   });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const MAX_NOTIFS = 50; // retain up to 50 recent notifications
   const [showNotifications, setShowNotifications] = useState(true); // banner visibility
   const [showNotificationsPopup, setShowNotificationsPopup] = useState(false);
   const [followingIds, setFollowingIds] = useState(new Set());
-  
   const { user, signOut } = useAuthStore();
+
+  // Load who I already follow so UI can hide Follow back appropriately
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      if (!user) {
+        setFollowingIds(new Set());
+        return;
+      }
+      try {
+        const { data, error } = await db.fetchUserFollowing(user.id);
+        if (error) return;
+        if (!canceled) {
+          const ids = new Set((data || []).map(r => r.following_id || r.profiles?.id).filter(Boolean));
+          setFollowingIds(ids);
+        }
+      } catch {}
+    })();
+    return () => { canceled = true; };
+  }, [user?.id]);
 
   // Check if Supabase credentials are configured
   const isSupabaseConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -65,25 +86,35 @@ function AppLayout() {
     if (!user) return;
     if (!supabase) return;
 
+    if (import.meta?.env?.MODE !== 'production') {
+      console.log('[Realtime] Subscribing to follows for following_id=', user.id);
+    }
+
     const channel = supabase
       .channel('follows-notifications')
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'follows', filter: `following_id=eq.${user.id}` },
         async (payload) => {
+          if (import.meta?.env?.MODE !== 'production') {
+            console.log('[Realtime] Follow INSERT payload:', payload);
+          }
           try {
             // Fetch follower's profile for readable name
             const followerId = payload.new?.follower_id;
             let followerName = 'Someone';
+            let actor = null;
             if (followerId) {
               const { data } = await db.getUserProfile(followerId);
               followerName = data?.username || followerName;
+              actor = data ? { id: data.id, username: data.username, avatar_url: data.avatar_url } : null;
             }
             const id = `${payload.commit_timestamp}-${payload.new?.follower_id}`;
+            const created_at = new Date().toISOString();
             setNotifications((prev) => [
-              { id, type: 'follow', message: `${followerName} started following you` },
+              { id, type: 'follow', message: `${followerName} started following you`, actor, created_at },
               ...prev,
-            ].slice(0, 5));
+            ].slice(0, MAX_NOTIFS));
             // Toast popup
             toast.success(`${followerName} followed you`);
           } catch (e) {
@@ -92,7 +123,7 @@ function AppLayout() {
             setNotifications((prev) => [
               { id, type: 'follow', message: `You have a new follower` },
               ...prev,
-            ].slice(0, 5));
+            ].slice(0, MAX_NOTIFS));
             toast.success('You have a new follower');
           }
         }
@@ -100,6 +131,9 @@ function AppLayout() {
       .subscribe();
 
     return () => {
+      if (import.meta?.env?.MODE !== 'production') {
+        console.log('[Realtime] Unsubscribing follows channel');
+      }
       supabase.removeChannel(channel);
     };
   }, [user]);
@@ -115,7 +149,8 @@ function AppLayout() {
       try {
         const { data, error } = await db.fetchUserFollowing(user.id);
         if (!error && isMounted) {
-          const ids = new Set((data || []).map(r => r.following_id));
+          // fetchUserFollowing returns an array of profile objects for the users you follow
+          const ids = new Set((data || []).map(r => r.id));
           setFollowingIds(ids);
         }
       } catch (_) {}
@@ -164,7 +199,7 @@ function AppLayout() {
             setNotifications((prev) => [
               { id, type: 'activity', message: msg },
               ...prev,
-            ].slice(0, 5));
+            ].slice(0, MAX_NOTIFS));
             toast(msg);
           } catch (_) {}
         }
@@ -199,10 +234,7 @@ function AppLayout() {
     );
   }
 
-  // Allow OAuth callback route even when not authenticated (Supabase finalizes session)
-  if (window.location.pathname === '/auth/callback') {
-    return <AuthCallback />;
-  }
+  // OAuth callback route is now handled at the top level
 
   // Show landing page if not authenticated
   if (!user) {
@@ -245,6 +277,23 @@ function AppLayout() {
         {showNotificationsPopup && (
           <NotificationsPopup
             notifications={notifications}
+            followingIds={followingIds}
+            onFollowBack={async (actorId) => {
+              if (!user || !actorId) return;
+              try {
+                if (followingIds.has(actorId)) return; // already following
+                const { error } = await db.followUser(user.id, actorId);
+                if (error) {
+                  toast.error(error.message || 'Could not follow back');
+                } else {
+                  // update local following set
+                  setFollowingIds(prev => new Set([...prev, actorId]));
+                  toast.success('Followed back');
+                }
+              } catch (e) {
+                toast.error('Could not follow back');
+              }
+            }}
             onDismiss={(id) => setNotifications((prev) => prev.filter(n => n.id !== id))}
             onClearAll={() => setNotifications([])}
             onClose={() => setShowNotificationsPopup(false)}
@@ -274,12 +323,12 @@ function AppLayout() {
           
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<DashboardPage />} />
              <Route path="/activities" element={<ActivitiesPage />} />
              <Route path="/my-activities" element={<ActivitiesPage mode="mine" />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/movies" element={<MoviesPage />} />
+            <Route path="/series" element={<SeriesPage />} />
             <Route path="/music" element={<MusicPage />} />
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/books" element={<BooksPage />} />
@@ -309,7 +358,12 @@ function AppLayout() {
 export default function App() {
   return (
     <Router>
-      <AppLayout />
+      <Routes>
+        {/* Auth callback route - accessible without authentication */}
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        {/* All other routes go through AppLayout */}
+        <Route path="/*" element={<AppLayout />} />
+      </Routes>
     </Router>
   );
 }

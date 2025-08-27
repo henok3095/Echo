@@ -46,7 +46,7 @@ export default function EditProfileModal({
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [onCancel]);
+  }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Edit profile">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />

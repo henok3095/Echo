@@ -26,6 +26,22 @@ export async function searchMovies(query) {
   }
 }
 
+// Fetch TV season details including episode list
+export async function getSeasonDetails(tvId, seasonNumber) {
+  if (isProd) {
+    const resp = await fetch(`/api/tmdb-details?type=tv_season&id=${encodeURIComponent(tvId)}&season=${encodeURIComponent(seasonNumber)}`);
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      const msg = data?.error || data?.message || `TMDB season details failed (${resp.status})`;
+      throw new Error(msg);
+    }
+    return data;
+  } else {
+    const { data } = await tmdb.get(`/tv/${tvId}/season/${seasonNumber}`);
+    return data;
+  }
+}
+
 export async function searchTVShows(query) {
   if (isProd) {
     const resp = await fetch(`/api/tmdb-search?type=tv&q=${encodeURIComponent(query)}`);

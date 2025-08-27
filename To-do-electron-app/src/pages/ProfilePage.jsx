@@ -27,7 +27,8 @@ export default function ProfilePage() {
     isFollowing,
     updateProfile, 
     fetchUserProfile, 
-    toggleFollow
+    toggleFollow,
+    deleteProfile
   } = useAuthStore();
   
   const [isEditing, setIsEditing] = useState(false);
@@ -38,6 +39,9 @@ export default function ProfilePage() {
   const [showVisibilitySettings, setShowVisibilitySettings] = useState(false);
   const settingsPanelRef = useRef(null);
   const settingsCloseRef = useRef(null);
+  // Delete profile confirmation state
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [confirmText, setConfirmText] = useState('');
   // Avatar cropper state
   const [showCropper, setShowCropper] = useState(false);
   const [cropSrc, setCropSrc] = useState(null); // Object URL of selected image
@@ -54,6 +58,43 @@ export default function ProfilePage() {
     } catch (err) {
       console.error('Google sign-in failed:', err);
       toast.error(err.message || 'Google sign-in failed');
+    }
+  };
+
+  // Delete profile from Settings modal (type-to-confirm)
+  const handleDeleteProfile = async () => {
+    try {
+      const expected = profile?.username || '';
+      if (!expected || confirmText !== expected) {
+        toast.error('Type your exact username to confirm');
+        return;
+      }
+      setIsLoading(true);
+      await deleteProfile();
+      toast.success('Profile deleted');
+      // Reset local editable state and close settings
+      setEditProfile(prev => ({
+        id: user?.id || '',
+        username: '',
+        bio: '',
+        avatar_url: '',
+        is_public: false,
+        show_activity: true,
+        show_media: true,
+        show_music: true,
+        show_tasks: true,
+        show_journal: false,
+        show_memories: false,
+        social_links: {}
+      }));
+      setShowVisibilitySettings(false);
+      setShowConfirmDelete(false);
+      setConfirmText('');
+    } catch (error) {
+      console.error('Error deleting profile:', error);
+      toast.error(error.message || 'Failed to delete profile');
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -477,25 +518,33 @@ export default function ProfilePage() {
         setEditProfile={setEditProfile}
       />
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 dark:text-gray-400">Visibility:</span>
+      {isViewingOwnProfile ? (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Visibility:</span>
+            <button
+              onClick={handleTogglePublic}
+              className="px-3 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+            >
+              {editProfile.is_public ? 'Public' : 'Private'}
+            </button>
+          </div>
           <button
-            onClick={handleTogglePublic}
+            onClick={toggleVisibilitySettings}
             className="px-3 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
           >
-            {editProfile.is_public ? 'Public' : 'Private'}
+            Settings
           </button>
         </div>
-        <button
-          onClick={toggleVisibilitySettings}
-          className="px-3 py-1 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          Settings
-        </button>
-      </div>
+      ) : (
+        <div className="flex items-center justify-end">
+          <span className="inline-flex items-center px-2 py-1 text-xs rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300">
+            {displayProfile?.is_public ? 'Public profile' : 'Private profile'}
+          </span>
+        </div>
+      )}
 
-      {showVisibilitySettings && (
+      {isViewingOwnProfile && showVisibilitySettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" role="dialog" aria-modal="true" aria-label="Profile settings">
           <div className="absolute inset-0 bg-black/60" onClick={() => setShowVisibilitySettings(false)} />
           <div className="relative z-10 w-[92vw] max-w-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-xl overflow-hidden" ref={settingsPanelRef}>
@@ -515,6 +564,49 @@ export default function ProfilePage() {
                 editProfile={editProfile}
                 handleVisibilityChange={handleVisibilityChange}
               />
+              <div className="mt-6 border-t border-red-200 dark:border-red-900 pt-4">
+                <h4 className="text-sm font-semibold text-red-600 dark:text-red-400 mb-2">Danger zone</h4>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">Delete your profile. This does not delete your account or other data.</p>
+                {!showConfirmDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmDelete(true)}
+                    className="inline-flex items-center px-3 py-2 text-sm rounded-lg border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30"
+                  >
+                    Delete profile
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      Type your username <span className="font-semibold">{profile?.username}</span> to confirm
+                    </p>
+                    <input
+                      type="text"
+                      value={confirmText}
+                      onChange={(e) => setConfirmText(e.target.value)}
+                      className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                      placeholder="Enter username to confirm"
+                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleDeleteProfile}
+                        disabled={isLoading || !profile?.username || confirmText !== profile?.username}
+                        className="inline-flex items-center px-3 py-2 text-sm rounded-lg border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-50"
+                      >
+                        Confirm delete
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowConfirmDelete(false); setConfirmText(''); }}
+                        className="inline-flex items-center px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

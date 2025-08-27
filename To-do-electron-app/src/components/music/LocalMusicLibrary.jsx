@@ -1,6 +1,7 @@
 import React from 'react';
 import { Music, Star, Calendar, CheckCircle, Play, Heart, Disc3, Plus } from 'lucide-react';
 import Card from '../Card';
+import { formatRating } from '../../utils/ratings.js';
 
 export default function LocalMusicLibrary({ musicEntries, isVisible, onToggle, onAdd }) {
   const getStatusColor = (status) => {
@@ -106,7 +107,7 @@ export default function LocalMusicLibrary({ musicEntries, isVisible, onToggle, o
                       <div className="flex items-center gap-1 mb-2">
                         <Star className="w-4 h-4 text-yellow-500 fill-current" />
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {music.rating}/10
+                          {formatRating(music.rating)}
                         </span>
                       </div>
                     )}

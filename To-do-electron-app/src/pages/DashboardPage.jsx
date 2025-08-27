@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { formatRating } from '../utils/ratings.js';
 import { 
   Plus, 
   CheckCircle, 
@@ -14,10 +15,8 @@ import {
   ArrowRight,
   Sparkles,
   Activity,
-  Coffee,
   Sun,
-  Moon,
-  Sunrise
+  Moon
 } from "lucide-react";
 import { useTaskStore, useMediaStore, useJournalStore, useAuthStore } from '../store/index.jsx';
 import Card from "../components/Card";
@@ -118,9 +117,9 @@ const StatCard = ({
 const getTimeBasedGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 6) return { text: "Working late?", icon: Moon, color: "indigo" };
-  if (hour < 12) return { text: "Good morning", icon: Sunrise, color: "amber" };
+  if (hour < 12) return { text: "Good morning", icon: Sun, color: "amber" };
   if (hour < 17) return { text: "Good afternoon", icon: Sun, color: "orange" };
-  if (hour < 22) return { text: "Good evening", icon: Coffee, color: "purple" };
+  if (hour < 22) return { text: "Good evening", icon: Moon, color: "purple" };
   return { text: "Good night", icon: Moon, color: "indigo" };
 };
 
@@ -249,6 +248,24 @@ export default function DashboardPage() {
     const today = new Date().toDateString();
     return task.due_date && new Date(task.due_date).toDateString() === today;
   }).length;
+  const todayPendingTasks = tasks
+    .filter(task => {
+      const today = new Date().toDateString();
+      const isToday = task.due_date && new Date(task.due_date).toDateString() === today;
+      const isDone = (task.status || '').toLowerCase() === 'completed' || (task.status || '').toLowerCase() === 'done';
+      return isToday && !isDone;
+    })
+    .sort((a, b) => {
+      // Prioritize by priority (High > Medium > Low), then by due time if present
+      const order = { High: 0, Medium: 1, Low: 2 };
+      const pa = order[a.priority] ?? 3;
+      const pb = order[b.priority] ?? 3;
+      if (pa !== pb) return pa - pb;
+      const ta = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const tb = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return ta - tb;
+    })
+    .slice(0, 5);
   
   const totalMedia = mediaEntries.length;
   const watchedMedia = mediaEntries.filter(media => media.status === 'watched' || media.status === 'completed').length;
@@ -309,12 +326,69 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200/50 dark:border-purple-800/40">
                   <Star className="w-4 h-4" />
-                  <span className="text-sm font-medium">Avg rating {avgRating.toFixed(1)}⭐</span>
+                  <span className="text-sm font-medium">Avg rating {formatRating(avgRating)}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Today Focus */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-orange-500 to-amber-600 rounded-lg">
+                <Target className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Today Focus</h2>
+              <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border border-orange-200/50 dark:border-orange-800/40">{todayPendingTasks.length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <a href="/tasks" className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Open Tasks</a>
+              <a href="/calendar" className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">Calendar</a>
+            </div>
+          </div>
+          {todayPendingTasks.length > 0 ? (
+            <ul className="space-y-2">
+              {todayPendingTasks.map((task) => (
+                <li key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200/60 dark:border-gray-700/50">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-1.5 rounded-md bg-amber-100 dark:bg-amber-900/30">
+                      <CheckCircle className="w-4 h-4 text-amber-600 dark:text-amber-300" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                        {task.priority && (
+                          <span className="px-1.5 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20">
+                            {task.priority}
+                          </span>
+                        )}
+                        {task.category && (
+                          <span className="px-1.5 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300">
+                            {task.category}
+                          </span>
+                        )}
+                        {task.due_date && (
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(task.due_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <a href="/tasks" className="text-xs px-2 py-1 rounded-md border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 whitespace-nowrap">Details</a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+              <Target className="w-10 h-10 mx-auto mb-2 opacity-60" />
+              <p>No tasks due today. Plan something meaningful!</p>
+            </div>
+          )}
+        </Card>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
@@ -330,7 +404,7 @@ export default function DashboardPage() {
           <StatCard 
             title="Media Tracked" 
             value={totalMedia}
-            subtitle={`Avg rating: ${avgRating.toFixed(1)}⭐`}
+            subtitle={`Avg rating: ${formatRating(avgRating)}`}
             color="purple"
             icon={Film}
             progress={mediaCompletionRate}
@@ -410,13 +484,24 @@ export default function DashboardPage() {
               {recentMedia.length > 0 ? recentMedia.map((media, index) => (
                 <div key={media.id} className="group flex items-center gap-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-800 transition-colors border border-gray-200/60 dark:border-gray-700/50 shadow-sm hover:shadow-md relative overflow-hidden">
                   <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-purple-400 to-pink-500" />
-                  {media.poster_path ? (
-                    <img 
-                      src={`https://image.tmdb.org/t/p/w92${media.poster_path}`}
-                      alt={media.title}
-                      className="w-12 h-16 object-cover rounded-md shadow-sm"
-                    />
-                  ) : (
+                  {media.poster_path ? (() => {
+                    const p = media.poster_path || '';
+                    const isAbsolute = /^https?:\/\//.test(p) || p.startsWith('data:');
+                    const isAlreadyTmdbFull = p.startsWith('/t/p/');
+                    const src = isAbsolute
+                      ? p
+                      : isAlreadyTmdbFull
+                        ? `https://image.tmdb.org${p}`
+                        : `https://image.tmdb.org/t/p/w92${p}`;
+                    return (
+                      <img
+                        src={src}
+                        alt={media.title}
+                        className="w-12 h-16 object-cover rounded-md shadow-sm"
+                        loading="lazy"
+                      />
+                    );
+                  })() : (
                     <div className="w-12 h-16 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 rounded-md flex items-center justify-center">
                       <Film className="w-6 h-6 text-gray-500 dark:text-gray-400" />
                     </div>
@@ -426,10 +511,10 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <Badge color="purple">{media.type}</Badge>
                       <Badge color="blue">{media.status}</Badge>
-                      {media.rating && (
+                      {media.rating != null && (
                         <span className="inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
                           <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                          {media.rating}/10
+                          {formatRating(media.rating)}
                         </span>
                       )}
                     </div>

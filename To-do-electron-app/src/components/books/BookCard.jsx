@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { BookOpen, User, Calendar, ChevronDown, Star } from 'lucide-react';
-import { dbToUiRating, formatRating } from '../../utils/ratings';
+import React, { useEffect, useMemo, useState } from 'react';
+import { BookOpen, Calendar } from 'lucide-react';
 import { useReadingStore } from '../../store/reading.jsx';
+import Card from '../../components/Card';
+import { getPageAndChapters, findPageCountByTitleAuthor } from '../../api/books.js';
 
 const STATUS_OPTIONS = [
   { value: 'to_read', label: 'To Read', icon: BookOpen },
@@ -10,17 +11,46 @@ const STATUS_OPTIONS = [
 ];
 
 export default function BookCard({ 
-  book, 
-  onStatusChange, 
-  onRatingChange, 
-  onShowDetails,
-  openShelfFor,
-  setOpenShelfFor,
+  book,
   onBookClick,
-  progressVariant = 'slider' // 'slider' | 'blocks'
 }) {
   const { sessions } = useReadingStore();
-  const [showFullDesc, setShowFullDesc] = useState(false);
+  const initialPageTotal = book.page_count || book.pages || book.pageCount || null;
+  const [pageTotal, setPageTotal] = useState(initialPageTotal);
+
+  // Try to fetch page count from Google Books if missing
+  useEffect(() => {
+    let cancelled = false;
+    setPageTotal(book.page_count || book.pages || book.pageCount || null);
+    const gbId = book.googleBooksId || book.google_books_id || book.google_booksId || book.googleBooksID;
+    const alreadyHasPages = !!(book.page_count || book.pages || book.pageCount);
+    if (alreadyHasPages) return;
+    (async () => {
+      try {
+        let pageCount = null;
+        if (gbId) {
+          console.debug('[BookCard] fetching pageCount by googleBooksId', { id: gbId, title: book.title });
+          const res = await getPageAndChapters(gbId);
+          pageCount = res?.pageCount || null;
+        }
+        // Fallback: search by title/author
+        if (!pageCount) {
+          const author = book.director || (Array.isArray(book.authors) ? book.authors[0] : undefined) || '';
+          console.debug('[BookCard] fetching pageCount by title/author', { title: book.title, author });
+          pageCount = await findPageCountByTitleAuthor(book.title, author);
+        }
+        if (!cancelled && pageCount) {
+          console.debug('[BookCard] resolved pageCount', { title: book.title, pageCount });
+          setPageTotal(pageCount);
+        } else {
+          console.debug('[BookCard] pageCount not found', { title: book.title });
+        }
+      } catch (_) {
+        console.warn('[BookCard] pageCount fetch failed', _);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [book]);
 
   // Aggregate reading progress for this book
   const progress = useMemo(() => {
@@ -28,233 +58,78 @@ export default function BookCard({
     const totalMinutes = forBook.reduce((a, s) => a + (s.minutes || 0), 0);
     const totalPages = forBook.reduce((a, s) => a + (s.pages || 0), 0);
     const lastDate = forBook.length > 0 ? forBook.map(s => s.date).sort().slice(-1)[0] : null;
-    const pageTotal = book.page_count || book.pages || null;
-    const percent = pageTotal && totalPages > 0 ? Math.min(100, Math.round((totalPages / pageTotal) * 100)) : null;
-    return { totalMinutes, totalPages, lastDate, percent, pageTotal };
-  }, [sessions, book]);
+    const total = pageTotal || null;
+    const percent = total ? Math.min(100, Math.round(((totalPages || 0) / total) * 100)) : 0;
+    return { totalMinutes, totalPages, lastDate, percent, pageTotal: total };
+  }, [sessions, book.id, pageTotal]);
   const getStatusPill = (s) => {
     switch (s) {
-      case 'reading': return 'text-blue-600 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30';
-      case 'read': return 'text-green-600 dark:text-green-300 bg-green-100 dark:bg-green-900/30';
-      case 'to_read': return 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30';
-      default: return 'text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800/50';
+      case 'reading': return 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20';
+      case 'read': return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20';
+      case 'to_read': return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20';
+      default: return 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20';
     }
   };
 
-  const renderStars = (value, onClick) => {
-    const uiVal = dbToUiRating(value);
-    return (
-      <div className="flex items-center gap-1">
-        {[1,2,3,4,5].map(i => (
-          <button
-            key={i}
-            onClick={onClick ? () => onClick(i) : undefined}
-            className={`p-1 ${onClick ? 'hover:scale-110 transition-transform' : ''}`}
-            title={`${i} star${i>1?'s':''}`}
-          >
-            <Star className={`w-5 h-5 ${i <= uiVal ? 'text-yellow-500 fill-current' : 'text-gray-400'}`} />
-          </button>
-        ))}
-      </div>
-    );
-  };
-
   return (
-    <div 
-      onClick={() => onBookClick && onBookClick(book)}
-      className="overflow-hidden shadow-lg hover:shadow-[0_20px_45px_-10px_rgba(99,102,241,0.25)] transition-transform duration-300 hover:scale-[1.02] hover:-translate-y-1 group rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-white/10 backdrop-blur-xl relative cursor-pointer"
-    >
-      {/* Gradient overlay for depth */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      
+    <Card className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 group cursor-pointer" onClick={() => onBookClick && onBookClick(book)}>
       <div className="relative">
-        <div className="h-72 w-full overflow-hidden rounded-t-3xl relative">
-          {book.poster_path ? (
-            <>
-              <img
-                src={book.poster_path}
-                alt={book.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                loading="lazy"
-              />
-              {/* Image overlay for better contrast */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-            </>
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-purple-500/40 via-indigo-500/30 to-blue-500/40 flex items-center justify-center relative">
-              <BookOpen className="w-20 h-20 text-white/60" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(255,255,255,0.1)_100%)]" />
-            </div>
-          )}
-        </div>
-        
-        {/* Enhanced Status pill */}
-        <div className="absolute top-4 right-4">
-          <div className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize backdrop-blur-md border border-white/20 shadow-lg ${getStatusPill(book.status)}`}>
+        {book.poster_path ? (
+          <img
+            src={book.poster_path}
+            alt={book.title}
+            className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-64 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">
+            <BookOpen className="w-16 h-16 text-gray-500 dark:text-gray-400" />
+          </div>
+        )}
+        <div className="absolute top-3 right-3">
+          <div className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusPill(book.status)}`}>
             {book.status?.replace('_', ' ')}
           </div>
         </div>
-        
-        {/* Enhanced Type badge */}
-        <div className="absolute top-4 left-4">
-          <div className="px-3 py-1.5 bg-black/50 backdrop-blur-md text-white text-xs rounded-full flex items-center gap-1.5 border border-white/20 shadow-lg">
-            <BookOpen className="w-3.5 h-3.5" /> Book
+        <div className="absolute top-3 left-3">
+          <div className="px-2 py-1 bg-black/70 text-white text-xs rounded-full flex items-center gap-1">
+            <BookOpen className="w-3 h-3" />
+            <span>Book</span>
           </div>
         </div>
       </div>
-      
-      <div className="p-6 flex flex-col">
-        <h3 className="font-bold text-white/90 mb-3 line-clamp-2 text-lg leading-tight">{book.title}</h3>
-        
-        {book.director && (
-          <p className="text-sm text-white/70 mb-2 flex items-center gap-2">
-            <User className="w-4 h-4 text-purple-300" />
-            {book.director}
-          </p>
-        )}
-        
+
+      <div className="p-4">
+        <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">{book.title}</h3>
         {book.release_date && (
-          <p className="text-sm text-white/70 mb-2 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-blue-300" />
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
             {new Date(book.release_date).getFullYear()}
           </p>
         )}
-        
-        <div className="flex items-center gap-3 mb-3">
-          {renderStars(book.rating, onRatingChange)}
-          <span className="text-sm font-semibold text-white/80 bg-white/10 px-2 py-1 rounded-full">
-            {formatRating(book.rating)}
-          </span>
-        </div>
-        
-        {/* Consistent description with Show more/less */}
-        <div className="mt-3">
-          {(() => {
-            const hasDesc = !!(book.overview && book.overview.trim().length > 0);
-            const desc = hasDesc ? book.overview.trim() : 'No description';
-            const isLong = hasDesc && desc.length > 220;
-            return (
-              <div>
-                <p className={`text-sm text-white/70 leading-relaxed ${!showFullDesc && isLong ? 'line-clamp-3' : ''}`}>
-                  {desc}
-                </p>
-                {isLong && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setShowFullDesc(v => !v); }}
-                    className="mt-1 text-xs font-medium text-purple-300 hover:text-purple-200"
-                  >
-                    {showFullDesc ? 'Show less' : 'Show more'}
-                  </button>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Reading Progress - always-visible volume bar */}
-        <div className="mt-3 min-h-[52px]">
-          <div className="space-y-2">
-            <div>
-              <div className="flex items-center justify-between text-xs text-white/70 mb-1">
-                <span>Progress</span>
-                <span>{(progress.percent ?? 0)}%</span>
-              </div>
-              {/* Progress bar variants */}
-              {progressVariant === 'slider' ? (
-                <div className="relative mt-1 select-none" aria-label={`Reading progress ${(progress.percent ?? 0)}%`}>
-                  {/* Track */}
-                  <div className="w-full h-2 rounded-full bg-white/12 overflow-hidden">
-                    {/* Fill */}
-                    <div
-                      className="h-full bg-gradient-to-r from-sky-400 via-indigo-400 to-violet-500 transition-[width] duration-500 ease-out"
-                      style={{ width: `${(progress.percent ?? 0)}%` }}
-                    />
-                  </div>
-                  {/* Ticks */}
-                  <div className="absolute inset-0 flex items-center justify-between px-[2px]">
-                    {Array.from({ length: 11 }).map((_, i) => (
-                      <div key={i} className="w-[1px] h-2 bg-white/20" />
-                    ))}
-                  </div>
-                  {/* Knob */}
-                  <div
-                    className="absolute -top-1.5 -translate-x-1/2"
-                    style={{ left: `${(progress.percent ?? 0)}%` }}
-                  >
-                    <div className="w-4 h-4 rounded-full bg-white/90 border border-white/60 shadow-md shadow-indigo-500/20" />
-                  </div>
-                  {/* Centered overlay percent badge */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-[11px] font-semibold text-white/85 bg-black/30 px-2 py-0.5 rounded-full border border-white/20 backdrop-blur-sm">
-                      {(progress.percent ?? 0)}%
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                /* 'blocks' variant: stepped volume blocks */
-                <div className="relative mt-1 select-none" aria-label={`Reading progress ${(progress.percent ?? 0)}%`}>
-                  <div className="w-full flex gap-1">
-                    {Array.from({ length: 10 }).map((_, i) => {
-                      const filled = Math.round(((progress.percent ?? 0) / 100) * 10);
-                      return (
-                        <div
-                          key={i}
-                          className={`h-3 flex-1 rounded-[3px] border border-white/10 transition-colors duration-300 ${i < filled ? 'bg-gradient-to-b from-sky-400 to-indigo-500' : 'bg-white/8'} `}
-                        />
-                      );
-                    })}
-                  </div>
-                  {/* Centered overlay percent badge */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <span className="text-[11px] font-semibold text-white/85 bg-black/30 px-2 py-0.5 rounded-full border border-white/20 backdrop-blur-sm">
-                      {(progress.percent ?? 0)}%
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-3 text-xs text-white/70">
-              {progress.totalPages > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20">{progress.totalPages} pages</span>
-              )}
-              {progress.totalMinutes > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/20">{progress.totalMinutes} min</span>
-              )}
-              {progress.lastDate && (
-                <span className="ml-auto text-[11px] text-white/60">Last: {new Date(progress.lastDate).toLocaleDateString()}</span>
-              )}
-            </div>
+        {pageTotal ? (
+          <div className="mb-2">
+            <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+              {pageTotal} pages
+            </span>
           </div>
-        </div>
-
-        {Array.isArray(book.tags) && book.tags.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {book.tags.slice(0, 3).map((t, i) => (
-              <span key={i} className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 border border-white/20 text-white/80 backdrop-blur-sm">{t}</span>
-            ))}
-            {book.tags.length > 3 && (
-              <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 border border-white/20 text-white/80 backdrop-blur-sm">+{book.tags.length - 3}</span>
-            )}
+        ) : null}
+        {/* Progress */}
+        <div className="mt-2">
+          <div className="h-2 w-full bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+            <div className="h-2 bg-indigo-500 transition-all" style={{ width: `${progress.percent || 0}%` }} />
           </div>
-        )}
-        
-        {/* Action buttons - consistent footer */}
-        <div className="mt-4 flex items-center justify-center pt-2 border-t border-white/10">
+          <p className="text-xs text-gray-500 mt-1">{progress.totalPages || 0}/{progress.pageTotal || 0} pages • {progress.percent || 0}%</p>
+        </div>
+        <div className="flex items-center justify-between mt-3">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onShowDetails(book);
-            }}
-            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-sm font-semibold rounded-xl hover:from-purple-400 hover:to-blue-400 transition-all duration-300 shadow-lg hover:shadow-[0_8px_25px_-8px_rgba(139,92,246,0.4)] hover:scale-105"
+            onClick={(e) => { e.stopPropagation(); onBookClick && onBookClick(book); }}
+            className="px-3 py-1 text-xs rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50"
           >
-            Details
+            Log Progress
           </button>
         </div>
-        
-        {/* Subtle bottom accent */}
-        <div className="mt-4 w-16 h-0.5 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full opacity-60 group-hover:opacity-100 group-hover:w-20 transition-all duration-500" />
       </div>
-    </div>
+    </Card>
   );
 }

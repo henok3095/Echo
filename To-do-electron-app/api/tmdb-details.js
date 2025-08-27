@@ -1,9 +1,11 @@
 // Vercel Serverless Function: TMDB details proxy
-// Usage: /api/tmdb-details?type=movie|tv&id=123
+// Usage:
+// - /api/tmdb-details?type=movie|tv&id=123
+// - /api/tmdb-details?type=tv_season&id=123&season=1
 
 module.exports = async (req, res) => {
   try {
-    const { type, id } = req.query || {};
+    const { type, id, season } = req.query || {};
     const apiKey = process.env.TMDB_API_KEY;
     if (!apiKey) {
       return res.status(500).json({ error: 'TMDB_API_KEY is not configured on the server' });
@@ -12,22 +14,34 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Missing type or id parameter' });
     }
 
-    const endpoint = type === 'tv' ? `tv/${id}` : `movie/${id}`;
-    const url = `https://api.themoviedb.org/3/${endpoint}?api_key=${encodeURIComponent(apiKey)}&append_to_response=credits`;
+    let endpoint;
+    let url;
+    if (type === 'tv_season') {
+      if (!season) {
+        return res.status(400).json({ error: 'Missing season parameter for tv_season' });
+      }
+      endpoint = `tv/${id}/season/${season}`;
+      url = `https://api.themoviedb.org/3/${endpoint}?api_key=${encodeURIComponent(apiKey)}`;
+    } else {
+      endpoint = type === 'tv' ? `tv/${id}` : `movie/${id}`;
+      url = `https://api.themoviedb.org/3/${endpoint}?api_key=${encodeURIComponent(apiKey)}&append_to_response=credits`;
+    }
 
     const axios = require('axios');
     const resp = await axios.get(url);
     const data = resp.data;
 
-    let director = 'Unknown';
-    if (type === 'movie' && data?.credits?.crew) {
-      const d = data.credits.crew.find((p) => p.job === 'Director');
-      director = d ? d.name : 'Unknown';
-    } else if (type === 'tv' && Array.isArray(data?.created_by) && data.created_by.length > 0) {
-      director = data.created_by[0].name;
+    let payload = data;
+    if (type === 'movie' || type === 'tv') {
+      let director = 'Unknown';
+      if (type === 'movie' && data?.credits?.crew) {
+        const d = data.credits.crew.find((p) => p.job === 'Director');
+        director = d ? d.name : 'Unknown';
+      } else if (type === 'tv' && Array.isArray(data?.created_by) && data.created_by.length > 0) {
+        director = data.created_by[0].name;
+      }
+      payload = { ...data, director };
     }
-
-    const payload = { ...data, director };
 
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate');
     return res.status(200).json(payload);

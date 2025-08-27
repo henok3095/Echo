@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { formatRating } from '../utils/ratings.js';
 import { db, supabase } from "../api/supabase.js";
 import { TrendingUp, Music, Film, Clock, UserCircle2, BookOpen } from "lucide-react";
 import { useAuthStore } from "../store/index.jsx";
@@ -133,7 +134,7 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
                   <b className="text-gray-900 dark:text-white">{profile?.username || 'Someone'}</b> {isFinished ? 'finished' : isWatchlist ? 'saved' : isRated ? 'rated' : isStarted ? 'started' : 'updated progress on'} <b>{title}</b>
                   {author && <span className="text-gray-500 dark:text-gray-400"> by {author}</span>}
                   {isRated && rating != null && (
-                    <span className="ml-1 text-yellow-700 dark:text-yellow-300">{String(rating)}/10</span>
+                    <span className="ml-1 text-yellow-700 dark:text-yellow-300">{formatRating(rating)}</span>
                   )}
                 </div>
                 {isProgress && progress != null && (
@@ -271,7 +272,7 @@ function ActivityItem({ activity, currentUserId, onReact, reactionCounts, myReac
               )}
               <div className="flex-1">
                 <div className="text-sm text-gray-800 dark:text-gray-100">
-                  <b className="text-gray-900 dark:text-white">{profile?.username || 'Someone'}</b> rated <b>{title}</b> <span className="text-yellow-700 dark:text-yellow-300">{rating}/10</span>
+                  <b className="text-gray-900 dark:text-white">{profile?.username || 'Someone'}</b> rated <b>{title}</b> <span className="text-yellow-700 dark:text-yellow-300">{formatRating(rating)}</span>
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{timeAgo(created_at)}</div>
                 {review && (
@@ -598,7 +599,8 @@ export default function ActivitiesPage({ mode = 'following' }) {
       try {
         const { data, error } = await db.fetchUserFollowing(user.id);
         if (!error && mounted) {
-          const ids = new Set((data || []).map(r => r.following_id));
+          // fetchUserFollowing returns the profile objects you follow
+          const ids = new Set((data || []).map(r => r.id));
           setFollowingIds(ids);
         }
       } catch (_) {}

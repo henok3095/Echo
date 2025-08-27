@@ -30,13 +30,63 @@ export const useAuthStore = create(
           if (error) throw error
           
           if (data.user) {
-            const { data: profile } = await db.getUserProfile(data.user.id)
-            set({ user: data.user, profile, isLoading: false })
+            // Fetch existing profile
+            const { data: existingProfile } = await db.getUserProfile(data.user.id)
+
+            let ensuredProfile = existingProfile
+
+            // If profile does not exist yet (first login after verification), create it
+            if (!ensuredProfile) {
+              // Derive a default username: prefer user metadata.username, else email prefix
+              const metaUsername = data.user?.user_metadata?.username
+              const emailPrefix = (data.user?.email || '').split('@')[0] || ''
+              const baseRaw = (metaUsername || emailPrefix || 'user').toString()
+              const sanitizedBase = baseRaw
+                .toLowerCase()
+                .replace(/[^a-z0-9_]/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                .slice(0, 20) || `user${String(data.user.id).slice(0, 6)}`
+
+              // Ensure uniqueness: if taken, append random 4 digits (a few attempts)
+              let candidate = sanitizedBase
+              for (let attempt = 0; attempt < 5; attempt++) {
+                const { data: taken } = await db.fetchUserProfile(candidate)
+                if (!taken) break
+                candidate = `${sanitizedBase}${Math.floor(1000 + Math.random() * 9000)}`
+              }
+
+              // Upsert the profile with the decided username
+              const { data: createdProfile } = await db.updateProfile({
+                id: data.user.id,
+                username: candidate,
+              })
+              ensuredProfile = createdProfile || null
+            }
+
+            set({ user: data.user, profile: ensuredProfile || null, isLoading: false })
           }
           return { data, error: null }
         } catch (error) {
           set({ error: error.message, isLoading: false })
           return { data: null, error }
+        }
+      },
+
+      // Delete the current user's profile
+      deleteProfile: async () => {
+        const { user } = get();
+        if (!user) throw new Error('Not authenticated');
+        set({ isLoading: true, error: null });
+        try {
+          const { error } = await db.deleteProfile(user.id);
+          if (error) throw error;
+          // Clear local profile state; keep session unless you also want to sign out
+          set({ profile: null, isLoading: false });
+          return true;
+        } catch (error) {
+          set({ error: error.message, isLoading: false });
+          throw error;
         }
       },
 

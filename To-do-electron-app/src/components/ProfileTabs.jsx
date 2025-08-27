@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatRating } from '../utils/ratings.js';
 import RecommendedUsers from './RecommendedUsers.jsx';
 import { UserCheck, Globe, Twitter, Instagram, Github, Send } from 'lucide-react';
 
@@ -10,6 +11,195 @@ export default function ProfileTabs({
   user,
   profileStats
 }) {
+  const FavoritesGrid = ({ userId, canView }) => {
+    const [items, setItems] = React.useState([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+    const [innerTab, setInnerTab] = React.useState('movies'); // 'movies' | 'series'
+
+    React.useEffect(() => {
+      const run = async () => {
+        if (!userId || !canView) return;
+        setLoading(true);
+        setError(null);
+        try {
+          const { db } = await import('../api/supabase.js');
+          const { data, error } = await db.getMediaEntries(userId);
+          if (error) throw error;
+          const favs = (data || []).filter(e => (e.favorite === true) && (e.type === 'movie' || e.type === 'tv'));
+          setItems(favs);
+        } catch (e) {
+          setError(e.message || 'Failed to load favorites');
+        } finally {
+          setLoading(false);
+        }
+      };
+      run();
+    }, [userId, canView]);
+
+    if (!canView) {
+      return <div className="text-sm text-gray-500 dark:text-gray-400">Media is private.</div>;
+    }
+    if (loading) return <div className="text-sm text-gray-500 dark:text-gray-400">Loading favorites…</div>;
+    if (error) return <div className="text-sm text-red-600 dark:text-red-400">{error}</div>;
+    if (!items.length) return <div className="text-sm text-gray-500 dark:text-gray-400">No favorite movies or series yet.</div>;
+
+    const buildPosterUrl = (p) => {
+      if (!p) return null;
+      if (typeof p === 'string' && /^https?:\/\//i.test(p)) return p;
+      // TMDB relative path
+      return `https://image.tmdb.org/t/p/w500${p}`;
+    };
+
+    const movies = items.filter(i => i.type === 'movie');
+    const series = items.filter(i => i.type === 'tv');
+
+    const Grid = ({ list }) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {list.map(item => (
+          <div key={item.id} className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="aspect-[2/3] bg-gray-200 dark:bg-gray-800">
+              {buildPosterUrl(item.poster_path) ? (
+                <img src={buildPosterUrl(item.poster_path)} alt={item.title || 'Media'} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">No image</div>
+              )}
+            </div>
+            <div className="p-2">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{item.title || 'Untitled'}</div>
+              <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 uppercase">{item.type === 'tv' ? 'Series' : 'Movie'}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+    return (
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-6" aria-label="Inner Tabs">
+            <button
+              className={`whitespace-nowrap py-2 px-1 border-b-2 text-sm font-medium ${innerTab === 'movies' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+              onClick={() => setInnerTab('movies')}
+            >
+              Movies <span className="ml-2 text-xs text-gray-400">{movies.length}</span>
+            </button>
+            <button
+              className={`whitespace-nowrap py-2 px-1 border-b-2 text-sm font-medium ${innerTab === 'series' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+              onClick={() => setInnerTab('series')}
+            >
+              Series <span className="ml-2 text-xs text-gray-400">{series.length}</span>
+            </button>
+          </nav>
+        </div>
+        {innerTab === 'movies' ? (
+          movies.length ? <Grid list={movies} /> : <div className="text-sm text-gray-500 dark:text-gray-400">No favorite movies yet.</div>
+        ) : (
+          series.length ? <Grid list={series} /> : <div className="text-sm text-gray-500 dark:text-gray-400">No favorite series yet.</div>
+        )}
+      </div>
+    );
+  };
+  const TopRatedSection = ({ userId, canView }) => {
+    const [items, setItems] = React.useState([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+    const [innerTab, setInnerTab] = React.useState('movies'); // 'movies' | 'series'
+
+    React.useEffect(() => {
+      const run = async () => {
+        if (!userId || !canView) return;
+        setLoading(true);
+        setError(null);
+        try {
+          const { db } = await import('../api/supabase.js');
+          const { data, error } = await db.getMediaEntries(userId);
+          if (error) throw error;
+          const rated = (data || []).filter(e => e.rating != null && (e.type === 'movie' || e.type === 'tv'));
+          setItems(rated);
+        } catch (e) {
+          setError(e.message || 'Failed to load top rated');
+        } finally {
+          setLoading(false);
+        }
+      };
+      run();
+    }, [userId, canView]);
+
+    const buildPosterUrl = (p) => {
+      if (!p) return null;
+      if (typeof p === 'string' && /^https?:\/\//i.test(p)) return p;
+      return `https://image.tmdb.org/t/p/w500${p}`;
+    };
+
+    if (!canView) return <div className="text-sm text-gray-500 dark:text-gray-400">Media is private.</div>;
+    if (loading) return <div className="text-sm text-gray-500 dark:text-gray-400">Loading top rated…</div>;
+    if (error) return <div className="text-sm text-red-600 dark:text-red-400">{error}</div>;
+    if (!items.length) return <div className="text-sm text-gray-500 dark:text-gray-400">No rated movies or series yet.</div>;
+
+    const topMovies = items
+      .filter(i => i.type === 'movie')
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+      .slice(0, 10);
+    const topSeries = items
+      .filter(i => i.type === 'tv')
+      .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+      .slice(0, 10);
+
+    const Grid = ({ list }) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+        {list.map((item, idx) => (
+          <div key={item.id} className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 relative">
+            <div className="absolute top-2 left-2 z-10">
+              <div className="w-7 h-7 rounded-full bg-black/70 text-white text-xs font-bold flex items-center justify-center">{idx + 1}</div>
+            </div>
+            <div className="aspect-[2/3] bg-gray-200 dark:bg-gray-800">
+              {buildPosterUrl(item.poster_path) ? (
+                <img src={buildPosterUrl(item.poster_path)} alt={item.title || 'Media'} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">No image</div>
+              )}
+            </div>
+            <div className="p-2">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-1">{item.title || 'Untitled'}</div>
+              <div className="flex items-center justify-between mt-1">
+                <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">{item.type === 'tv' ? 'Series' : 'Movie'}</div>
+                {item.rating != null && (
+                  <div className="text-xs font-semibold text-yellow-600 dark:text-yellow-400">{formatRating(item.rating)}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+
+    return (
+      <div className="space-y-6">
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav className="-mb-px flex space-x-6" aria-label="Inner Tabs">
+            <button
+              className={`whitespace-nowrap py-2 px-1 border-b-2 text-sm font-medium ${innerTab === 'movies' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+              onClick={() => setInnerTab('movies')}
+            >
+              Movies <span className="ml-2 text-xs text-gray-400">{topMovies.length}</span>
+            </button>
+            <button
+              className={`whitespace-nowrap py-2 px-1 border-b-2 text-sm font-medium ${innerTab === 'series' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+              onClick={() => setInnerTab('series')}
+            >
+              Series <span className="ml-2 text-xs text-gray-400">{topSeries.length}</span>
+            </button>
+          </nav>
+        </div>
+        {innerTab === 'movies' ? (
+          topMovies.length ? <Grid list={topMovies} /> : <div className="text-sm text-gray-500 dark:text-gray-400">No rated movies yet.</div>
+        ) : (
+          topSeries.length ? <Grid list={topSeries} /> : <div className="text-sm text-gray-500 dark:text-gray-400">No rated series yet.</div>
+        )}
+      </div>
+    );
+  };
   const FriendsList = ({ userId }) => {
     const [friends, setFriends] = React.useState([]);
     const [loading, setLoading] = React.useState(false);
@@ -71,13 +261,18 @@ export default function ProfileTabs({
   };
   const tabs = [
     { id: 'overview', label: 'About' },
+    { id: 'top_rated', label: 'Top Rated' },
+    { id: 'favorites', label: 'Favorites' },
     { id: 'friends', label: 'Friends', icon: UserCheck },
   ];
 
   // Filter tabs based on visibility settings
+  const canViewMedia = isViewingOwnProfile || (!!displayProfile?.is_public && !!displayProfile?.show_media);
   const visibleTabs = (isViewingOwnProfile || (displayProfile?.is_public ?? true))
-    ? tabs
-    : tabs.filter(t => t.id !== 'friends');
+    ? tabs.filter(t => (t.id === 'favorites' || t.id === 'top_rated' ? canViewMedia : true))
+    : tabs
+        .filter(t => t.id !== 'friends')
+        .filter(t => (t.id === 'favorites' || t.id === 'top_rated' ? canViewMedia : true));
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -170,6 +365,22 @@ export default function ProfileTabs({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Friends</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">People you follow who also follow you back</p>
             <FriendsList userId={displayProfile?.id || user?.id} />
+          </div>
+        );
+
+      case 'top_rated':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Rated</h3>
+            <TopRatedSection userId={displayProfile?.id || user?.id} canView={canViewMedia} />
+          </div>
+        );
+
+      case 'favorites':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Favorite Movies & Series</h3>
+            <FavoritesGrid userId={displayProfile?.id || user?.id} canView={canViewMedia} />
           </div>
         );
 

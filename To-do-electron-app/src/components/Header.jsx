@@ -45,7 +45,7 @@ export default function Header({ username = "User", onMenuClick, onToggleTheme, 
 
         {/* Notifications Toggle */}
         <button
-          className="relative p-2.5 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all duration-300 hover:scale-105 active:scale-95 group overflow-hidden"
+          className="relative p-2.5 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all duration-300 hover:scale-105 active:scale-95 group"
           onClick={onToggleNotifications}
           aria-label="Toggle notifications"
         >
@@ -54,8 +54,8 @@ export default function Header({ username = "User", onMenuClick, onToggleTheme, 
             <Bell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           {notificationsCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center shadow">
-              {notificationsCount > 9 ? '9+' : notificationsCount}
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center shadow pointer-events-none">
+              {notificationsCount > 99 ? '99+' : notificationsCount}
             </span>
           )}
         </button>
