@@ -451,8 +451,8 @@ export default function MoviesPage() {
           />
 
           {/* Actions under title */}
-          <div className="flex items-center justify-center gap-3">
-            {/* Segmented toggle: Movies | Series */}
+          <div className="flex items-center justify-between">
+            {/* Segmented toggle: Movies | Series - moved to left */}
             <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
               <button
                 className="px-5 py-3 flex items-center gap-2 bg-gradient-to-r from-pink-600 to-orange-600 text-white font-medium"
@@ -469,20 +469,24 @@ export default function MoviesPage() {
                 Series
               </button>
             </div>
-            <button
-              onClick={() => setShowWatchDiaryModal(true)}
-              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-            >
-              <Calendar className="w-5 h-5" />
-              <span className="font-medium">Watch Diary</span>
-            </button>
-            <button
-              onClick={() => { setShowAddModal(true); setShowDropup(false); }}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-            >
-              <Film className="w-5 h-5" />
-              <span className="font-medium">Add</span>
-            </button>
+            
+            {/* Action buttons on the right */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowWatchDiaryModal(true)}
+                className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+              >
+                <Calendar className="w-5 h-5" />
+                <span className="font-medium">Watch Diary</span>
+              </button>
+              <button
+                onClick={() => { setShowAddModal(true); setShowDropup(false); }}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+              >
+                <Film className="w-5 h-5" />
+                <span className="font-medium">Add</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -546,13 +550,28 @@ export default function MoviesPage() {
             All
           </button>
           <button
-            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'movie' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/20'}`}
-            onClick={() => setFilter('movie')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'to_watch' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-orange-50 dark:hover:bg-orange-900/20'}`}
+            onClick={() => setFilter('to_watch')}
           >
-            Movies
+            <Clock className="inline w-4 h-4 mr-1" />
+            To Watch
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'watching' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
+            onClick={() => setFilter('watching')}
+          >
+            <Play className="inline w-4 h-4 mr-1" />
+            Watching
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'watched' ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
+            onClick={() => setFilter('watched')}
+          >
+            <CheckCircle className="inline w-4 h-4 mr-1" />
+            Watched
           </button>
           
-          {/* 1. Add 'Favorites' to the filter group: */}
+          {/* Favorites filter */}
           <button
             className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'favorites' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-pink-50 dark:hover:bg-pink-900/20'}`}
             onClick={() => setFilter('favorites')}
@@ -567,7 +586,7 @@ export default function MoviesPage() {
             .filter(movie => {
               if (filter === 'all') return true;
               if (filter === 'favorites') return movie.favorite;
-              return movie.type === filter;
+              return movie.status === filter;
             })
             .map((movie) => (
               <Card key={movie.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 group">

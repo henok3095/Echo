@@ -45,6 +45,9 @@ export default function SeriesPage() {
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [finishRating, setFinishRating] = useState(0);
   const [finishReview, setFinishReview] = useState('');
+  
+  // Filter state
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     fetchMediaEntries();
@@ -515,8 +518,8 @@ export default function SeriesPage() {
         />
 
         {/* Actions under title */}
-        <div className="flex items-center justify-center gap-3">
-          {/* Segmented toggle: Movies | Series */}
+        <div className="flex items-center justify-between">
+          {/* Segmented toggle: Movies | Series - moved to left */}
           <div className="flex rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
             <button
               onClick={() => navigate('/movies')}
@@ -533,39 +536,54 @@ export default function SeriesPage() {
               Series
             </button>
           </div>
-          <button
-            onClick={() => {
-              if (seriesEntries.length > 0) {
-                openLogModal(seriesEntries[0]);
-              } else {
-                toast("No series yet. Add one first.");
-              }
-            }}
-            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-          >
-            <Calendar className="w-5 h-5" />
-            <span className="font-medium">Watch Diary</span>
-          </button>
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="font-medium">Add</span>
-          </button>
+          
+          {/* Action buttons on the right */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (seriesEntries.length > 0) {
+                  openLogModal(seriesEntries[0]);
+                } else {
+                  toast("No series yet. Add one first.");
+                }
+              }}
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <Calendar className="w-5 h-5" />
+              <span className="font-medium">Watch Diary</span>
+            </button>
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <Plus className="w-5 h-5" />
+              <span className="font-medium">Add</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="p-6 bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-900/20 dark:to-purple-800/10 border-purple-200/50 dark:border-purple-800/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-600 dark:text-purple-400 text-sm font-medium mb-1">Total Series</p>
+                <p className="text-purple-600 dark:text-purple-400 text-sm font-medium mb-1">Total</p>
                 <p className="text-3xl font-bold text-purple-900 dark:text-purple-100">{seriesEntries.length}</p>
               </div>
               <Tv className="w-8 h-8 text-purple-500" />
             </div>
           </Card>
+          
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 border-green-200/50 dark:border-green-800/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-600 dark:text-green-400 text-sm font-medium mb-1">Watched</p>
+                <p className="text-3xl font-bold text-green-900 dark:text-green-100">{seriesEntries.filter(m => m.status === 'watched').length}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+          </Card>
+          
           <Card className="p-6 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-800/10 border-blue-200/50 dark:border-blue-800/30">
             <div className="flex items-center justify-between">
               <div>
@@ -575,25 +593,64 @@ export default function SeriesPage() {
               <Play className="w-8 h-8 text-blue-500" />
             </div>
           </Card>
-          <Card className="p-6 bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-900/20 dark:to-green-800/10 border-green-200/50 dark:border-green-800/30">
+          
+          <Card className="p-6 bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-900/20 dark:to-orange-800/10 border-orange-200/50 dark:border-orange-800/30">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-green-600 dark:text-green-400 text-sm font-medium mb-1">Completed</p>
-                <p className="text-3xl font-bold text-green-900 dark:text-green-100">{seriesEntries.filter(m => m.status === 'watched').length}</p>
+                <p className="text-orange-600 dark:text-orange-400 text-sm font-medium mb-1">To Watch</p>
+                <p className="text-3xl font-bold text-orange-900 dark:text-orange-100">
+                  {seriesEntries.filter(m => m.status === 'to_watch').length}
+                </p>
               </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
+              <Clock className="w-8 h-8 text-orange-500" />
             </div>
           </Card>
         </div>
 
+        {/* Filter Button Group */}
+        <div className="flex gap-2 mb-6">
+          <button
+            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'all' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/20'}`}
+            onClick={() => setFilter('all')}
+          >
+            All
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'to_watch' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-orange-50 dark:hover:bg-orange-900/20'}`}
+            onClick={() => setFilter('to_watch')}
+          >
+            <Clock className="inline w-4 h-4 mr-1" />
+            To Watch
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'watching' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
+            onClick={() => setFilter('watching')}
+          >
+            <Play className="inline w-4 h-4 mr-1" />
+            Watching
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'watched' ? 'bg-green-600 text-white border-green-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
+            onClick={() => setFilter('watched')}
+          >
+            <CheckCircle className="inline w-4 h-4 mr-1" />
+            Completed
+          </button>
+        </div>
+
         {/* Series Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {seriesEntries.map((show) => (
-            <Card key={show.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-              <div className="relative">
-                {show.poster_path ? (
-                  <img
-                    src={`https://image.tmdb.org/t/p/w500${show.poster_path}`}
+          {seriesEntries
+            .filter(show => {
+              if (filter === 'all') return true;
+              return show.status === filter;
+            })
+            .map((show) => (
+              <Card key={show.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 group">
+                <div className="relative">
+                  {show.poster_path ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w500${show.poster_path}`}
                     alt={show.title}
                     className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
                   />
