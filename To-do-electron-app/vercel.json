@@ -3,7 +3,16 @@
   "buildCommand": "npm run build",
   "installCommand": "npm i --ignore-scripts",
   "outputDirectory": "dist",
+  "functions": {
+    "api/tmdb-search.js": {
+      "runtime": "nodejs18.x"
+    },
+    "api/tmdb-details.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
