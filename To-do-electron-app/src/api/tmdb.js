@@ -2,9 +2,8 @@ import axios from 'axios';
 
 const apiKey = import.meta.env.VITE_TMDB_API_KEY;
 
-// In development, call TMDB directly with the public V3 key.
-// In production (Vercel), call our serverless proxy to avoid client-side blocks and hide the key.
-const isProd = import.meta.env.PROD;
+// Always use TMDB API directly for now to avoid Vercel serverless function issues
+const isProd = false;
 
 export const tmdb = axios.create({
   baseURL: 'https://api.themoviedb.org/3',
