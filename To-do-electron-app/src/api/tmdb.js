@@ -123,3 +123,18 @@ export async function getTVDetails(tvId) {
     };
   }
 }
+
+export async function getTopRatedTVShows(page = 1) {
+  if (isProd) {
+    const resp = await fetch(`/api/tmdb-top-rated?type=tv&page=${encodeURIComponent(page)}`);
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok) {
+      const msg = data?.error || data?.message || `TMDB top rated failed (${resp.status})`;
+      throw new Error(msg);
+    }
+    return data.results || [];
+  } else {
+    const { data } = await tmdb.get('/tv/top_rated', { params: { page } });
+    return data.results;
+  }
+}

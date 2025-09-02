@@ -10,7 +10,9 @@ export const uiToDbRating = (uiRating) => {
   // Clamp 0-5, quantize to nearest 0.25, then convert to 0-10 (0.5 steps)
   const clamped = Math.min(5, Math.max(0, v));
   const q = Math.round(clamped / 0.25) * 0.25;
-  return Math.min(10, Math.max(0, q * 2));
+  const dbRating = Math.min(10, Math.max(0, q * 2));
+  // Ensure we return an integer for database compatibility
+  return Math.round(dbRating);
 };
 
 /**

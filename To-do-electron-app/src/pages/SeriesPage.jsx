@@ -1,18 +1,33 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Tv, Film, Calendar, CheckCircle, Play, Clock, Heart, Plus, X, Search, Loader } from "lucide-react";
+import { Tv, Film, Calendar, CheckCircle, Play, Clock, Heart, Plus, X, Search, Loader, Star, TrendingUp, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useMediaStore, useAuthStore } from "../store/index.jsx";
 import Card from "../components/Card";
 import PageHeader from "../components/PageHeader";
 import toast from "react-hot-toast";
-import { getTVDetails, getSeasonDetails, searchTVShows } from "../api/tmdb";
+import { getTVDetails, getSeasonDetails, searchTVShows, getTopRatedTVShows } from "../api/tmdb";
 import { db } from "../api/supabase";
 import { uiToDbRating } from "../utils/ratings";
+import MediaActions from "../components/MediaActions";
+import UnifiedMediaCard from "../components/UnifiedMediaCard";
 
 export default function SeriesPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { mediaEntries, fetchMediaEntries, isLoading, addMediaEntry, updateMediaEntry } = useMediaStore();
+
+  // Local UI state
+  const [filter, setFilter] = useState('all');
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('seriesView') || 'grid'; } catch { return 'grid'; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('seriesView', viewMode); } catch {};
+  }, [viewMode]);
+
+  // Derived lists
+  const seriesEntries = mediaEntries.filter(entry => entry.type === 'tv');
 
   // Progress state
   const [totalEpisodesByMedia, setTotalEpisodesByMedia] = useState({}); // media_id -> total episodes
@@ -31,102 +46,26 @@ export default function SeriesPage() {
 
   // Add Series modal state (Movies-like flow)
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [tvQuery, setTvQuery] = useState("");
+  const [showStatusSelection, setShowStatusSelection] = useState(false);
+  const [tvQuery, setTvQuery] = useState('');
   const [tvResults, setTvResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  // Enhanced flow states
-  const [showStatusSelection, setShowStatusSelection] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(false);
   const [pendingTv, setPendingTv] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [isAddingToLibrary, setIsAddingToLibrary] = useState(false);
+  const [addingStatus, setAddingStatus] = useState('');
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState('');
-  // Finish flow (when last episode logged)
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [finishRating, setFinishRating] = useState(0);
   const [finishReview, setFinishReview] = useState('');
+  const [showTopRatedModal, setShowTopRatedModal] = useState(false);
   
-  // Filter state
-  const [filter, setFilter] = useState('all');
-
-  useEffect(() => {
-    fetchMediaEntries();
-  }, [fetchMediaEntries]);
-
-  const seriesEntries = mediaEntries.filter((m) => m.type === "tv");
-
-  // Load sessions for current user and visible TV entries
-  useEffect(() => {
-    if (!user?.id || seriesEntries.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      setLoadingProgress(true);
-      try {
-        const newSessions = {};
-        for (const show of seriesEntries) {
-          const { data, error } = await db.listWatchingSessions(user.id, show.id);
-          if (error) continue;
-          newSessions[show.id] = data || [];
-        }
-        if (!cancelled) setSessionsByMedia(newSessions);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        if (!cancelled) setLoadingProgress(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id, seriesEntries.map(s => s.id).join(',')]);
-
-  // Load total episode counts via TMDB and compute season offsets
-  useEffect(() => {
-    if (seriesEntries.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      const totals = { ...totalEpisodesByMedia };
-      const offsets = { ...seasonOffsetsByMedia };
-      for (const show of seriesEntries) {
-        if (totals[show.id]) continue; // cached
-        try {
-          const tvId = show.tmdb_id;
-          if (!tvId) continue;
-          const tv = await getTVDetails(tvId);
-          // Sum episodes across seasons (skip specials if season_number === 0)
-          let total = 0;
-          let seasonOffsetMap = {};
-          if (Array.isArray(tv.seasons)) {
-            // Sort seasons ascending by season_number ignoring 0 (specials)
-            const seasonsSorted = [...tv.seasons].filter(s => s.season_number !== 0).sort((a,b) => a.season_number - b.season_number);
-            let running = 0;
-            for (const s of seasonsSorted) {
-              seasonOffsetMap[s.season_number] = running; // 0-based offset before this season
-              // Fallback to s.episode_count; try fetching full season for accuracy
-              let epCount = s.episode_count || 0;
-              try {
-                const season = await getSeasonDetails(tvId, s.season_number);
-                epCount = Array.isArray(season.episodes) ? season.episodes.length : epCount;
-              } catch {}
-              total += (epCount || 0);
-              running += (epCount || 0);
-            }
-          }
-          totals[show.id] = total;
-          offsets[show.id] = seasonOffsetMap;
-        } catch (e) {
-          console.error('TMDB load failed for show', show.title, e);
-        }
-      }
-      if (!cancelled) {
-        setTotalEpisodesByMedia(totals);
-        setSeasonOffsetsByMedia(offsets);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [seriesEntries.map(s => `${s.id}:${s.tmdb_id}`).join(',')]);
-
+  // Helper to compute absolute episode index from season/episode using season offsets
   const getAbsIndex = (mediaId, season, episode) => {
     const offset = seasonOffsetsByMedia[mediaId]?.[Number(season)] || 0;
-    return (offset + Number(episode)); // 1-based count within series
+    return (offset + Number(episode)); // 1-based
   };
 
   const getProgressFor = (mediaId) => {
@@ -153,6 +92,19 @@ export default function SeriesPage() {
     setSelectedStatus('');
     setRating(0);
     setReview('');
+  };
+
+  // Get user's top rated series (sorted by rating)
+  const getTopRatedSeries = () => {
+    return seriesEntries
+      .filter(series => series.rating && series.rating > 0)
+      .sort((a, b) => {
+        // Primary sort: by rating (highest first)
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        // Secondary sort: by title alphabetically for ties
+        return (a.title || '').localeCompare(b.title || '');
+      })
+      .slice(0, 20); // Show top 20
   };
 
   const openAddModal = () => {
@@ -208,6 +160,47 @@ export default function SeriesPage() {
     }
   };
 
+  // Background population of season offsets, totals and sessions for series so progress can render
+  useEffect(() => {
+    let cancelled = false;
+    const populateProgressData = async () => {
+      for (const s of seriesEntries) {
+        if (cancelled) return;
+        if (!s.tmdb_id) continue;
+        // skip if we already have totals for this media
+        if (totalEpisodesByMedia[s.id]) continue;
+        try {
+          const details = await getTVDetails(s.tmdb_id);
+          const seasons = (details.seasons || []).filter(x => x.season_number !== 0);
+          const seasonsSorted = seasons.sort((a,b) => a.season_number - b.season_number);
+          const offsetMap = {};
+          let running = 0;
+          for (const se of seasonsSorted) {
+            offsetMap[se.season_number] = running;
+            running += se.episode_count || 0;
+          }
+          setSeasonOffsetsByMedia(prev => ({ ...prev, [s.id]: offsetMap }));
+          setTotalEpisodesByMedia(prev => ({ ...prev, [s.id]: running }));
+          // fetch existing sessions for this user/media
+          try {
+            if (user?.id) {
+              const { data: existingSessions, error } = await db.listWatchingSessions(user.id, s.id);
+              if (!error) setSessionsByMedia(prev => ({ ...prev, [s.id]: existingSessions || [] }));
+            }
+          } catch (e) {
+            console.warn('Failed to load sessions for progress population:', e);
+          }
+        } catch (e) {
+          console.warn('Failed to fetch TV details for progress population:', e);
+        }
+        // small throttle to avoid hammering TMDB
+        await new Promise(r => setTimeout(r, 150));
+      }
+    };
+    populateProgressData();
+    return () => { cancelled = true; };
+  }, [seriesEntries, user?.id]);
+
   const findDuplicateTV = (tmdbId, title, date) => {
     const t = (title || '').trim().toLowerCase();
     const y = date ? new Date(date).getFullYear() : '';
@@ -219,13 +212,23 @@ export default function SeriesPage() {
 
   // Movies-like add flows for TV
   const addToWatchDiaryTV = async (tv) => {
+    setIsAddingToLibrary(true);
+    setAddingStatus('to_watch');
+    
     try {
       if (!user?.id) {
         toast.error('You must be signed in to add series');
-        return;
+        return null;
       }
       const dup = findDuplicateTV(tv.id, tv.name || tv.title, tv.first_air_date || tv.release_date);
-      if (dup) { toast.error('This series already exists in your library'); return; }
+      if (dup) { 
+        toast.error('This series already exists in your library'); 
+        return null; 
+      }
+      
+      // Show optimistic loading toast
+      toast.loading(`Adding ${tv.title || tv.name} to Watch List...`, { id: 'add-series' });
+      
       const mediaData = {
         title: tv.title || tv.name,
         type: 'tv',
@@ -240,24 +243,48 @@ export default function SeriesPage() {
         tmdb_id: tv.id,
         visibility: 'private',
       };
+      
       console.log('[Series] addMediaEntry payload (to_watch):', mediaData);
-      await addMediaEntry(mediaData);
-      toast.success(`${mediaData.title} added to your watch diary!`);
+      const created = await addMediaEntry(mediaData);
+      
+      toast.success(`📚 ${mediaData.title} added to your Watch List!`, { id: 'add-series' });
       resetAddState();
       await fetchMediaEntries();
+      
+      return created;
     } catch (e) {
-      toast.error(`Failed to add to watch diary${e?.message ? `: ${e.message}` : ''}`);
+      toast.error(`Failed to add to watch diary${e?.message ? `: ${e.message}` : ''}`, { id: 'add-series' });
+      return null;
+    } finally {
+      setIsAddingToLibrary(false);
+      setAddingStatus('');
     }
   };
 
   const addTVWithStatus = async (tv, status) => {
+    setIsAddingToLibrary(true);
+    setAddingStatus(status);
+    
     try {
       if (!user?.id) {
         toast.error('You must be signed in to add series');
-        return;
+        return null;
       }
       const dup = findDuplicateTV(tv.id, tv.name || tv.title, tv.first_air_date || tv.release_date);
-      if (dup) { toast.error('This series already exists in your library'); return; }
+      if (dup) { 
+        toast.error('This series already exists in your library'); 
+        return null; 
+      }
+      
+      // Show status-specific loading messages
+      const loadingMessages = {
+        watching: `Adding ${tv.title || tv.name} to Currently Watching...`,
+        dropped: `Marking ${tv.title || tv.name} as Dropped...`,
+        completed: `Marking ${tv.title || tv.name} as Completed...`
+      };
+      
+      toast.loading(loadingMessages[status] || `Adding ${tv.title || tv.name}...`, { id: 'add-series' });
+      
       const mediaData = {
         title: tv.title || tv.name,
         type: 'tv',
@@ -272,36 +299,54 @@ export default function SeriesPage() {
         tmdb_id: tv.id,
         visibility: 'private',
       };
+      
       console.log('[Series] addMediaEntry payload (status):', status, mediaData);
       const created = await addMediaEntry(mediaData);
-      toast.success(`${mediaData.title} added as ${status.replace('_',' ')}!`);
+      
+      // Status-specific success messages and actions
+      if (status === 'watching') {
+        toast.success(`📺 ${mediaData.title} added to Currently Watching!`, { id: 'add-series' });
+      } else if (status === 'to_watch') {
+        toast.success(`📚 ${mediaData.title} added to Watch List!`, { id: 'add-series' });
+      } else if (status === 'dropped') {
+        toast.success(`❌ ${mediaData.title} marked as Dropped`, { id: 'add-series' });
+      } else {
+        toast.success(`${mediaData.title} added as ${status.replace('_',' ')}! 🎬`, { id: 'add-series' });
+      }
+      
       resetAddState();
       await fetchMediaEntries();
-
-      // If user added as watching, immediately open the log modal and hint the next episode
-      if (created && status === 'watching') {
-        // Try to infer next episode (default S1E1 for new series)
-        try {
-          await openLogModal(created);
-          toast('Start logging at S1E1');
-        } catch (e) {
-          console.warn('Failed to auto-open log modal after adding watching:', e);
-        }
-      }
+      
+      return created;
     } catch (e) {
-      toast.error(`Failed to add series${e?.message ? `: ${e.message}` : ''}`);
+      toast.error(`Failed to add series${e?.message ? `: ${e.message}` : ''}`, { id: 'add-series' });
+      return null;
+    } finally {
+      setIsAddingToLibrary(false);
+      setAddingStatus('');
     }
   };
 
   const handleRatingSubmissionTV = async () => {
     if (!pendingTv) return;
+    
+    setIsAddingToLibrary(true);
+    setAddingStatus('watched');
+    
     try {
       if (!user?.id) {
         toast.error('You must be signed in to add series');
         return;
       }
       const dup = findDuplicateTV(pendingTv.id, pendingTv.name || pendingTv.title, pendingTv.first_air_date || pendingTv.release_date);
-      if (dup) { toast.error('This series already exists in your library'); return; }
+      if (dup) { 
+        toast.error('This series already exists in your library'); 
+        return; 
+      }
+      
+      const ratingText = rating > 0 ? ` with ${rating}/5 rating` : '';
+      toast.loading(`Marking ${pendingTv.title || pendingTv.name} as Watched${ratingText}...`, { id: 'add-series' });
+      
       const mediaData = {
         title: pendingTv.title || pendingTv.name,
         type: 'tv',
@@ -317,25 +362,49 @@ export default function SeriesPage() {
         visibility: 'private',
         watch_date: new Date().toISOString(),
       };
+      
       console.log('[Series] addMediaEntry payload (watched with rating):', mediaData);
       await addMediaEntry(mediaData);
-      toast.success(`${mediaData.title} added as watched with ${rating}/5 rating!`);
+      
+      toast.success(`✅ ${mediaData.title} marked as Watched${ratingText}! ${rating >= 4 ? '🌟' : '⭐'}`, { id: 'add-series' });
+      
       resetAddState();
       await fetchMediaEntries();
     } catch (e) {
-      toast.error(`Failed to add series${e?.message ? `: ${e.message}` : ''}`);
+      toast.error(`Failed to add series${e?.message ? `: ${e.message}` : ''}`, { id: 'add-series' });
+    } finally {
+      setIsAddingToLibrary(false);
+      setAddingStatus('');
     }
   };
 
-  const handleStatusSelection = (status) => {
+  const handleStatusSelection = async (status) => {
     setSelectedStatus(status);
     setShowStatusSelection(false);
+    
     if (status === 'watched') {
+      // For watched series, show rating modal
       setShowRatingModal(true);
     } else if (status === 'to_watch') {
-      addToWatchDiaryTV(pendingTv);
+      // For to_watch, add directly to library
+      await addToWatchDiaryTV(pendingTv);
+    } else if (status === 'watching') {
+      // For watching, add to library then immediately open log modal
+      const addedSeries = await addTVWithStatus(pendingTv, status);
+      if (addedSeries) {
+        // Small delay to ensure the series is added to the list
+        setTimeout(async () => {
+          try {
+            await openLogModal(addedSeries);
+            toast('🎬 Ready to log your first episode!');
+          } catch (e) {
+            console.warn('Failed to auto-open log modal:', e);
+          }
+        }, 500);
+      }
     } else {
-      addTVWithStatus(pendingTv, status);
+      // For other statuses (dropped), add directly
+      await addTVWithStatus(pendingTv, status);
     }
   };
 
@@ -361,10 +430,36 @@ export default function SeriesPage() {
         }
       }
       setSeasonsData({ tvId: show.tmdb_id, seasons });
+      // Build season offset map and total episodes for this show so progress can be computed
+      if (seasons.length > 0) {
+        const seasonsSortedForOffsets = [...seasons].sort((a,b) => a.season_number - b.season_number);
+        const offsetMap = {};
+        let runningCount = 0;
+        for (const s of seasonsSortedForOffsets) {
+          offsetMap[s.season_number] = runningCount;
+          runningCount += (s.episodes?.length || 0);
+        }
+        setSeasonOffsetsByMedia(prev => ({ ...prev, [show.id]: offsetMap }));
+        setTotalEpisodesByMedia(prev => ({ ...prev, [show.id]: runningCount }));
+
+        // Try to fetch existing watching sessions from DB so progress can reflect past logs
+        try {
+          if (user?.id) {
+            const { data: existingSessions, error } = await db.listWatchingSessions(user.id, show.id);
+            if (!error) {
+              const sessArr = existingSessions || [];
+              setSessionsByMedia(prev => ({ ...prev, [show.id]: sessArr }));
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to load existing watching sessions:', e);
+        }
+      }
       // Compute next episode from existing sessions if any; else default to S1E1
       let preSeason = seasons[0]?.season_number || 1;
       let preEpisode = seasons[0]?.episodes?.[0]?.episode_number || 1;
       try {
+        // Prefer freshly-fetched sessions if available, fall back to state
         const sess = sessionsByMedia[show.id] || [];
         if (seasons.length > 0) {
           // Build a local season offset map from fetched seasons
@@ -553,6 +648,13 @@ export default function SeriesPage() {
               <span className="font-medium">Watch Diary</span>
             </button>
             <button
+              onClick={() => setShowTopRatedModal(true)}
+              className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white rounded-xl hover:from-yellow-700 hover:to-orange-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+            >
+              <Star className="w-5 h-5" />
+              <span className="font-medium">My Top Rated</span>
+            </button>
+            <button
               onClick={openAddModal}
               className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
             >
@@ -608,7 +710,24 @@ export default function SeriesPage() {
         </div>
 
         {/* Filter Button Group */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-2 rounded-lg font-medium transition-colors ${viewMode === 'grid' ? 'bg-purple-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800'}`}
+              aria-pressed={viewMode === 'grid'}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 rounded-lg font-medium transition-colors ${viewMode === 'list' ? 'bg-purple-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800'}`}
+              aria-pressed={viewMode === 'list'}
+            >
+              List
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
           <button
             className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'all' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/20'}`}
             onClick={() => setFilter('all')}
@@ -636,91 +755,69 @@ export default function SeriesPage() {
             <CheckCircle className="inline w-4 h-4 mr-1" />
             Completed
           </button>
+          </div>
         </div>
 
-        {/* Series Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {seriesEntries
-            .filter(show => {
-              if (filter === 'all') return true;
-              return show.status === filter;
-            })
-            .map((show) => (
-              <Card key={show.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-                <div className="relative">
-                  {show.poster_path ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w500${show.poster_path}`}
-                    alt={show.title}
-                    className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-64 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">
-                    <Tv className="w-16 h-16 text-gray-500 dark:text-gray-400" />
-                  </div>
-                )}
-                <div className="absolute top-3 right-3">
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(show.status)}`}>
-                    {getStatusIcon(show.status)}
-                    <span className="capitalize">{show.status.replace("_", " ")}</span>
-                  </div>
-                </div>
-                <div className="absolute top-3 left-3">
-                  <div className="px-2 py-1 bg-black/70 text-white text-xs rounded-full flex items-center gap-1">
-                    <Tv className="w-3 h-3" />
-                    <span>TV</span>
-                  </div>
-                </div>
-              </div>
-              <div className="p-4">
-                <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">{show.title}</h3>
-                {show.release_date && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {new Date(show.release_date).getFullYear()}
-                  </p>
-                )}
-                {/* Progress */}
-                <div className="mt-2">
-                  {(() => {
-                    const p = getProgressFor(show.id);
-                    return (
-                      <>
-                        <div className="h-2 w-full bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                          <div className="h-2 bg-indigo-500 transition-all" style={{ width: `${p.pct}%` }} />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">{p.completed}/{p.total} episodes • {p.pct}%</p>
-                      </>
-                    );
-                  })()}
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <button
-                    onClick={() => openLogModal(show)}
-                    className="px-3 py-1 text-xs rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50"
-                  >
-                    Log Progress
-                  </button>
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
+        {/* Series Grid / List */}
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {seriesEntries
+              .filter(show => filter === 'all' ? true : show.status === filter)
+              .map((show) => {
+                const progress = getProgressFor(show.id);
+                return (
+                  <UnifiedMediaCard
+                    key={show.id}
+                    media={show}
+                    compact={viewMode === 'list'}
+                    progress={progress}
+                    onLogDate={openLogModal}
+                    onOpenLog={openLogModal}
+                    onStartWatching={async (m) => {
                       try {
-                        await useMediaStore.getState().toggleFavoriteMediaEntry(show.id);
-                        toast.success(show.favorite ? "Removed from favorites" : "Added to favorites");
-                      } catch (err) {
-                        toast.error("Failed to update favorite");
+                        await updateMediaEntry(m.id, { status: 'watching' });
+                        await fetchMediaEntries();
+                        // open log modal to log first episode
+                        await openLogModal(m);
+                        toast.success(`${m.title} marked as Watching`);
+                      } catch (e) {
+                        toast.error('Failed to mark as watching');
                       }
                     }}
-                    className={`p-2 rounded-full bg-white/90 dark:bg-gray-900/80 shadow transition-colors hover:scale-110 border border-gray-200 dark:border-gray-700 ${show.favorite ? "text-pink-600" : "text-gray-400 hover:text-pink-500"}`}
-                    title={show.favorite ? "Remove from favorites" : "Add to favorites"}
-                  >
-                    <Heart className={`w-6 h-6 transition-all duration-200 ${show.favorite ? "fill-current" : ""}`} fill={show.favorite ? "currentColor" : "none"} />
-                  </button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+                  />
+                );
+              })}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {seriesEntries
+              .filter(show => filter === 'all' ? true : show.status === filter)
+              .map((show) => {
+                const progress = getProgressFor(show.id);
+                return (
+                  <div key={show.id} className="w-full">
+                    <UnifiedMediaCard
+                      media={show}
+                      compact={viewMode === 'list'}
+                      progress={progress}
+                      onLogDate={openLogModal}
+                      onOpenLog={openLogModal}
+                      onStartWatching={async (m) => {
+                        try {
+                          await updateMediaEntry(m.id, { status: 'watching' });
+                          await fetchMediaEntries();
+                          await openLogModal(m);
+                          toast.success(`${m.title} marked as Watching`);
+                        } catch (e) {
+                          toast.error('Failed to mark as watching');
+                        }
+                      }}
+                    />
+                  </div>
+                );
+              })}
+          </div>
+        )}
 
         {seriesEntries.length === 0 && (
           <div className="text-center py-16">
@@ -858,44 +955,74 @@ export default function SeriesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <button
                     onClick={() => handleStatusSelection('watched')}
-                    className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/10 border-2 border-green-200 dark:border-green-800/30 rounded-xl hover:from-green-100 hover:to-green-200 dark:hover:from-green-900/30 dark:hover:to-green-800/20 transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="flex flex-col items-center p-6 rounded-xl border-2 border-green-200 dark:border-green-800 hover:border-green-400 dark:hover:border-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isAddingToLibrary}
                   >
-                    <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+                    <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                      <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
                     <div className="text-center">
                       <div className="font-semibold text-green-700 dark:text-green-300">Watched</div>
-                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">Rate & review</div>
+                      <div className="text-xs text-green-600 dark:text-green-400 mt-1">Mark as completed</div>
                     </div>
                   </button>
 
                   <button
                     onClick={() => handleStatusSelection('to_watch')}
-                    className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/10 border-2 border-orange-200 dark:border-orange-800/30 rounded-xl hover:from-orange-100 hover:to-orange-200 dark:hover:from-orange-900/30 dark:hover:to-orange-800/20 transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="flex flex-col items-center p-6 rounded-xl border-2 border-orange-200 dark:border-orange-800 hover:border-orange-400 dark:hover:border-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isAddingToLibrary}
                   >
-                    <Clock className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                    <div className="p-3 bg-orange-100 dark:bg-orange-900/50 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                      {isAddingToLibrary && addingStatus === 'to_watch' ? (
+                        <div className="w-6 h-6 border-2 border-orange-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                      )}
+                    </div>
                     <div className="text-center">
-                      <div className="font-semibold text-orange-700 dark:text-orange-300">To Watch</div>
-                      <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">Add to diary</div>
+                      <div className="font-semibold text-orange-700 dark:text-orange-300">
+                        {isAddingToLibrary && addingStatus === 'to_watch' ? 'Adding...' : 'To Watch'}
+                      </div>
+                      <div className="text-xs text-orange-600 dark:text-orange-400 mt-1">Add to watchlist</div>
                     </div>
                   </button>
 
                   <button
                     onClick={() => handleStatusSelection('watching')}
-                    className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 border-2 border-blue-200 dark:border-blue-800/30 rounded-xl hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-900/30 dark:hover:to-blue-800/20 transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="flex flex-col items-center p-6 rounded-xl border-2 border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isAddingToLibrary}
                   >
-                    <Play className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                      {isAddingToLibrary && addingStatus === 'watching' ? (
+                        <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Play className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                      )}
+                    </div>
                     <div className="text-center">
-                      <div className="font-semibold text-blue-700 dark:text-blue-300">Watching</div>
-                      <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">Currently viewing</div>
+                      <div className="font-semibold text-blue-700 dark:text-blue-300">
+                        {isAddingToLibrary && addingStatus === 'watching' ? 'Adding...' : 'Watching'}
+                      </div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">Currently watching</div>
                     </div>
                   </button>
 
                   <button
                     onClick={() => handleStatusSelection('dropped')}
-                    className="flex flex-col items-center gap-3 p-6 bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/10 border-2 border-red-200 dark:border-red-800/30 rounded-xl hover:from-red-100 hover:to-red-200 dark:hover:from-red-900/30 dark:hover:to-red-800/20 transition-all duration-200 hover:scale-105 active:scale-95"
+                    className="flex flex-col items-center p-6 rounded-xl border-2 border-red-200 dark:border-red-800 hover:border-red-400 dark:hover:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isAddingToLibrary}
                   >
-                    <X className="w-8 h-8 text-red-600 dark:text-red-400" />
+                    <div className="p-3 bg-red-100 dark:bg-red-900/50 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                      {isAddingToLibrary && addingStatus === 'dropped' ? (
+                        <div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <X className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      )}
+                    </div>
                     <div className="text-center">
-                      <div className="font-semibold text-red-700 dark:text-red-300">Dropped</div>
+                      <div className="font-semibold text-red-700 dark:text-red-300">
+                        {isAddingToLibrary && addingStatus === 'dropped' ? 'Adding...' : 'Dropped'}
+                      </div>
                       <div className="text-xs text-red-600 dark:text-red-400 mt-1">Didn't finish</div>
                     </div>
                   </button>
@@ -929,8 +1056,27 @@ export default function SeriesPage() {
                 </div>
               </div>
               <div className="mt-4 flex justify-end gap-2">
-                <button onClick={() => setShowRatingModal(false)} className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800">Cancel</button>
-                <button onClick={handleRatingSubmissionTV} className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Save</button>
+                <button 
+                  onClick={() => setShowRatingModal(false)} 
+                  className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  disabled={isAddingToLibrary}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleRatingSubmissionTV} 
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={isAddingToLibrary}
+                >
+                  {isAddingToLibrary && addingStatus === 'watched' ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    'Save'
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -967,6 +1113,63 @@ export default function SeriesPage() {
             </div>
           </div>
         )}
+
+        {/* My Top Rated Series Modal */}
+        {showTopRatedModal && (() => {
+          const topRatedSeries = getTopRatedSeries();
+          return (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg">
+                      <Star className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">My Top Rated Series</h2>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Your highest rated TV shows ({topRatedSeries.length} series)</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowTopRatedModal(false)}
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                    aria-label="Close modal"
+                  >
+                    <X className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="p-6">
+                  {topRatedSeries.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                      {topRatedSeries.map((series, index) => {
+                        const progress = getProgressFor(series.id);
+                        return <UnifiedMediaCard key={series.id} media={series} rank={index + 1} progress={progress} />;
+                      })}
+                    </div>
+                  )}
+                  
+                  {topRatedSeries.length === 0 && (
+                    <div className="text-center py-12">
+                      <Star className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No rated series yet</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-4">Start rating your watched series to see your top picks here!</p>
+                      <button
+                        onClick={() => {
+                          setShowTopRatedModal(false);
+                          setFilter('watched');
+                        }}
+                        className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all"
+                      >
+                        View Watched Series
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Log Progress Modal */}
         {logModalOpen && logTarget && (

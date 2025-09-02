@@ -21,6 +21,8 @@ import { useMediaStore, useAuthStore } from '../store/index.jsx';
 import { searchMulti, getMovieDetails, getTVDetails } from "../api/tmdb";
 import Card from "../components/Card";
 import PageHeader from "../components/PageHeader";
+import MediaActions from "../components/MediaActions";
+import UnifiedMediaCard from "../components/UnifiedMediaCard";
 import toast from 'react-hot-toast';
 import { uiToDbRating, dbToUiRating, formatRating } from "../utils/ratings";
 // Removed MediaStreakTracker import as streak display is no longer used
@@ -40,10 +42,17 @@ const STATUS_OPTIONS = [
 export default function MoviesPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { mediaEntries, addMediaEntry, fetchMediaEntries, isLoading } = useMediaStore();
+  const { mediaEntries, addMediaEntry, fetchMediaEntries, isLoading, updateMediaEntry } = useMediaStore();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDropup, setShowDropup] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('moviesView') || 'grid'; } catch { return 'grid'; }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('moviesView', viewMode); } catch {};
+  }, [viewMode]);
   const [searchTerm, setSearchTerm] = useState('');
   const [newMedia, setNewMedia] = useState({
     title: '',
@@ -480,6 +489,13 @@ export default function MoviesPage() {
                 <span className="font-medium">Watch Diary</span>
               </button>
               <button
+                onClick={() => setShowTop10Modal(true)}
+                className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-yellow-600 to-orange-600 text-white rounded-xl hover:from-yellow-700 hover:to-orange-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
+              >
+                <Star className="w-5 h-5" />
+                <span className="font-medium">My Top Rated</span>
+              </button>
+              <button
                 onClick={() => { setShowAddModal(true); setShowDropup(false); }}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
               >
@@ -542,7 +558,24 @@ export default function MoviesPage() {
         </div>
 
         {/* Filter Button Group */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`px-3 py-2 rounded-lg font-medium transition-colors ${viewMode === 'grid' ? 'bg-purple-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800'}`}
+              aria-pressed={viewMode === 'grid'}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`px-3 py-2 rounded-lg font-medium transition-colors ${viewMode === 'list' ? 'bg-purple-600 text-white shadow-sm' : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-800'}`}
+              aria-pressed={viewMode === 'list'}
+            >
+              List
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
           <button
             className={`px-4 py-2 rounded-lg font-medium transition-colors border ${filter === 'all' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/20'}`}
             onClick={() => setFilter('all')}
@@ -578,130 +611,73 @@ export default function MoviesPage() {
           >
             <Heart className="inline w-4 h-4 mr-1" fill={filter === 'favorites' ? 'currentColor' : 'none'} /> Favorites
           </button>
+          </div>
         </div>
 
-        {/* Movies Grid - 3 columns */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {movieEntries
-            .filter(movie => {
-              if (filter === 'all') return true;
-              if (filter === 'favorites') return movie.favorite;
-              return movie.status === filter;
-            })
-            .map((movie) => (
-              <Card key={movie.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 group">
-                <div className="relative">
-
-                  {movie.poster_path ? (
-                    <img
-                      src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                      alt={movie.title}
-                      className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-full h-64 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">
-                      <Film className="w-16 h-16 text-gray-500 dark:text-gray-400" />
-                    </div>
-                  )}
-                  <div className="absolute top-3 right-3">
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${getStatusColor(movie.status)}`}>
-                      {getStatusIcon(movie.status)}
-                      <span className="capitalize">{movie.status.replace('_', ' ')}</span>
-                    </div>
-                  </div>
-                  {movie.type && (
-                    <div className="absolute top-3 left-3">
-                      <div className="px-2 py-1 bg-black/70 text-white text-xs rounded-full flex items-center gap-1">
-                        {movie.type === 'movie' ? <Film className="w-3 h-3" /> : <Tv className="w-3 h-3" />}
-                        <span className="capitalize">{movie.type}</span>
-                      </div>
-                    </div>
-                  )}
+        {/* Movies Grid / List */}
+        {viewMode === 'grid' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {movieEntries
+              .filter(movie => {
+                if (filter === 'all') return true;
+                if (filter === 'favorites') return movie.favorite;
+                return movie.status === filter;
+              })
+              .map((movie) => (
+                <UnifiedMediaCard
+                  key={movie.id}
+                  media={movie}
+                  compact={viewMode === 'list'}
+                  onLogDate={(m) => { setSelectedMovieForWatchDate(m); setWatchDate(new Date().toISOString().split('T')[0]); setShowWatchDateModal(true); }}
+                  onOpenLog={() => { /* no-op for movies */ }}
+                  onStartWatching={async (m) => {
+                    try {
+                      await updateMediaEntry(m.id, { status: 'watching' });
+                      // refresh entries and open watch date modal so user can log when they started
+                      await fetchMediaEntries();
+                      setSelectedMovieForWatchDate(m);
+                      setWatchDate(new Date().toISOString().split('T')[0]);
+                      setShowWatchDateModal(true);
+                      toast.success(`${m.title} marked as Watching`);
+                    } catch (e) {
+                      toast.error('Failed to mark as watching');
+                    }
+                  }}
+                />
+              ))}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {movieEntries
+              .filter(movie => {
+                if (filter === 'all') return true;
+                if (filter === 'favorites') return movie.favorite;
+                return movie.status === filter;
+              })
+              .map((movie) => (
+                <div key={movie.id} className="w-full">
+                  <UnifiedMediaCard
+                    media={movie}
+                    compact={viewMode === 'list'}
+                    onLogDate={(m) => { setSelectedMovieForWatchDate(m); setWatchDate(new Date().toISOString().split('T')[0]); setShowWatchDateModal(true); }}
+                    onOpenLog={() => { /* no-op for movies */ }}
+                    onStartWatching={async (m) => {
+                      try {
+                        await updateMediaEntry(m.id, { status: 'watching' });
+                        await fetchMediaEntries();
+                        setSelectedMovieForWatchDate(m);
+                        setWatchDate(new Date().toISOString().split('T')[0]);
+                        setShowWatchDateModal(true);
+                        toast.success(`${m.title} marked as Watching`);
+                      } catch (e) {
+                        toast.error('Failed to mark as watching');
+                      }
+                    }}
+                  />
                 </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">{movie.title}</h3>
-                  {movie.director && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {movie.director}
-                    </p>
-                  )}
-                  {movie.release_date && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(movie.release_date).getFullYear()}
-                    </p>
-                  )}
-                  {movie.rating && (
-                    <div className="flex items-center gap-1 mb-2">
-                      <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        {formatRating(movie.rating, { outOfFive: true, decimals: 2 })}
-                      </span>
-                    </div>
-                  )}
-                  {movie.review && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mt-2">
-                      {movie.review}
-                    </p>
-                  )}
-                  {movie.watch_date && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      Watched: {new Date(movie.watch_date).toLocaleDateString()}
-                    </p>
-                  )}
-                  <div className="flex items-end gap-2 justify-between">
-                    <div className="flex gap-2">
-                      {movie.status === 'watched' && !movie.watch_date && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedMovieForWatchDate(movie);
-                            setWatchDate(new Date().toISOString().split('T')[0]);
-                            setShowWatchDateModal(true);
-                          }}
-                          className="flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs rounded-full hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
-                        >
-                          <Calendar className="w-3 h-3" />
-                          Log Watch Date
-                        </button>
-                      )}
-                      {movie.watch_date && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedMovieForWatchDate(movie);
-                            setWatchDate(movie.watch_date);
-                            setShowWatchDateModal(true);
-                          }}
-                          className="flex items-center gap-1 px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs rounded-full hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
-                        >
-                          <Calendar className="w-3 h-3" />
-                          Edit Watch Date
-                        </button>
-                      )}
-                    </div>
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        try {
-                          await useMediaStore.getState().toggleFavoriteMediaEntry(movie.id);
-                          toast.success(movie.favorite ? 'Removed from favorites' : 'Added to favorites');
-                        } catch (err) {
-                          toast.error('Failed to update favorite');
-                        }
-                      }}
-                      className={`p-2 rounded-full bg-white/90 dark:bg-gray-900/80 shadow transition-colors hover:scale-110 border border-gray-200 dark:border-gray-700 ${movie.favorite ? 'text-pink-600' : 'text-gray-400 hover:text-pink-500'}`}
-                      title={movie.favorite ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      <Heart className={`w-6 h-6 transition-all duration-200 ${movie.favorite ? 'fill-current' : ''}`} fill={movie.favorite ? 'currentColor' : 'none'} />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-        </div>
+              ))}
+          </div>
+        )}
 
         {movieEntries.length === 0 && (
           <div className="text-center py-16">
@@ -932,19 +908,7 @@ export default function MoviesPage() {
         </div>
       )}
 
-      {/* Floating Action Buttons Container */}
-      <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-50 flex flex-col gap-3">
-        {/* Top 10 Rated Movies Button */}
-        <button
-          onClick={() => setShowTop10Modal(true)}
-          className="bg-yellow-400 hover:bg-yellow-500 text-white rounded-full shadow-lg p-4 md:p-5 flex items-center justify-center transition-all duration-200 group"
-          title="Show Top 10 Rated"
-          aria-label="Show Top 10 Rated"
-          style={{ boxShadow: '0 4px 24px 0 rgba(0,0,0,0.15)' }}
-        >
-          <Star className="w-6 h-6 md:w-8 md:h-8 text-white group-hover:scale-110 transition-transform" fill="currentColor" />
-        </button>
-      </div>
+
 
       {/* Top 10 Rated Modal */}
       {showTop10Modal && (
@@ -968,61 +932,7 @@ export default function MoviesPage() {
                   .sort((a, b) => b.rating - a.rating || new Date(b.release_date || 0) - new Date(a.release_date || 0))
                   .slice(0, 10)
                   .map((movie, idx) => (
-                    <Card key={movie.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-105 group border-yellow-400 dark:border-yellow-600">
-                      <div className="relative">
-                        {/* Rank Number Badge */}
-                        <div className="absolute top-3 left-3 z-10">
-                          <div className="w-8 h-8 rounded-full bg-yellow-400 text-white flex items-center justify-center font-bold text-lg shadow-md border-2 border-white dark:border-gray-900">
-                            {idx + 1}
-                          </div>
-                        </div>
-                        {movie.poster_path ? (
-                          <img
-                            src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
-                            alt={movie.title}
-                            className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-64 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center">
-                            <Film className="w-16 h-16 text-gray-500 dark:text-gray-400" />
-                          </div>
-                        )}
-                        <div className="absolute top-3 right-3">
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300`}>
-                            <Star className="w-3 h-3" />
-                            {formatRating(movie.rating, { outOfFive: true, decimals: 2 })}
-                          </div>
-                        </div>
-                        {movie.type && (
-                          <div className="absolute bottom-3 left-3">
-                            <div className="px-2 py-1 bg-black/70 text-white text-xs rounded-full flex items-center gap-1">
-                              {movie.type === 'movie' ? <Film className="w-3 h-3" /> : <Tv className="w-3 h-3" />}
-                              <span className="capitalize">{movie.type}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-bold text-gray-900 dark:text-white mb-2 line-clamp-2">{movie.title}</h3>
-                        {movie.director && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
-                            <User className="w-3 h-3" />
-                            {movie.director}
-                          </p>
-                        )}
-                        {movie.release_date && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(movie.release_date).getFullYear()}
-                          </p>
-                        )}
-                        {movie.review && (
-                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 mt-2">
-                            {movie.review}
-                          </p>
-                        )}
-                      </div>
-                    </Card>
+                    <UnifiedMediaCard key={movie.id} media={movie} rank={idx + 1} />
                   ))}
                 {movieEntries.filter(m => m.rating).length === 0 && (
                   <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-12">

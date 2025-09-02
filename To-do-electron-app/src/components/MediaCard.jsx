@@ -1,14 +1,15 @@
 import React from "react";
 import { Star, Music, Film } from "lucide-react";
+import MediaActions from './MediaActions';
 
-export default function MediaCard({ title, type = "Movie", rating = 0, coverUrl = "", tags = [] }) {
+export default function MediaCard({ title, type = "Movie", rating = 0, coverUrl = "", tags = [], id = null, favorite = false }) {
   // Clamp rating to 0-5 range and prepare a display string with up to 2 decimals (trim trailing zeros)
   const r = Math.min(5, Math.max(0, Number(rating) || 0));
   const widthPct = `${(r / 5) * 100}%`;
   const ratingText = r.toFixed(2).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-4 hover:shadow-md transition-shadow relative">
       <div className="flex items-center gap-2 mb-3">
         {type === "Movie" || type === "Series" ? (
           <Film className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -50,6 +51,11 @@ export default function MediaCard({ title, type = "Movie", rating = 0, coverUrl 
           ))}
         </div>
       )}
+
+      {/* Absolute positioned actions bottom-right to keep placement consistent */}
+      <div className="absolute bottom-3 right-3">
+        <MediaActions media={{ id, favorite, rating }} />
+      </div>
     </div>
   );
 }

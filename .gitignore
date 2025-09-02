@@ -58,6 +58,7 @@ backend/supabase/.supabase/**
 # --- Generated lockfiles (keep where appropriate) ---
 # Note: We keep package-lock.json/yarn.lock/pnpm-lock.yaml and pubspec.lock committed for apps.
 
-# --- Exclude Flutter mobile app for now ---
+# --- Exclude mobile apps for now ---
 echo_mobile/
+echo-mobile/
 

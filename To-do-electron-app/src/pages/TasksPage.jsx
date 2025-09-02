@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTaskStore } from '../store/index.jsx';
-import { Plus, Lightbulb, CheckCircle, Clock, Flag, Trash2, Edit, LayoutGrid, List, Filter, Search, SortAsc, SortDesc, ChevronDown } from 'lucide-react';
+import { Plus, Lightbulb, CheckCircle, Clock, Flag, Trash2, Edit, LayoutGrid, List, Filter, Search, SortAsc, SortDesc, ChevronDown, Flame } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import TaskStreakTracker from "../components/TaskStreakTracker";
 import toast from 'react-hot-toast';
@@ -209,6 +209,30 @@ export default function TasksPage() {
 
   const categories = ['Life', 'School', 'Work', 'Side Projects'];
   const priorities = ['High', 'Medium', 'Low'];
+
+  // Calculate streak for tasks
+  const calculateStreak = (tasks) => {
+    // Get all completed task dates (YYYY-MM-DD)
+    const completedDates = tasks
+      .filter((t) => t.status === "Completed" && t.completed_at)
+      .map((t) => new Date(t.completed_at).toISOString().slice(0, 10));
+    if (completedDates.length === 0) return 0;
+    // Make a set for fast lookup
+    const dateSet = new Set(completedDates);
+    // Start from today, count backwards
+    let streak = 0;
+    let current = new Date();
+    for (;;) {
+      const iso = current.toISOString().slice(0, 10);
+      if (dateSet.has(iso)) {
+        streak++;
+        current.setDate(current.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
   
   // Quick Add parser: title words + tokens: #tag, !high/!medium/!low, due:YYYY-MM-DD|today|tomorrow
   const handleQuickAdd = async () => {
@@ -283,13 +307,25 @@ export default function TasksPage() {
         />
         <div className="w-full flex items-center gap-3 flex-wrap justify-start sm:justify-end">
           {/* View toggle */}
-          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-            <button onClick={() => setView('list')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='list' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
-              <List className="w-4 h-4" /> List
-            </button>
-            <button onClick={() => setView('board')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='board' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
-              <LayoutGrid className="w-4 h-4" /> Board
-            </button>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+              <button onClick={() => setView('list')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='list' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
+                <List className="w-4 h-4" /> List
+              </button>
+              <button onClick={() => setView('board')} className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${view==='board' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
+                <LayoutGrid className="w-4 h-4" /> Board
+              </button>
+            </div>
+            <div className="relative group">
+              <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-300 rounded-lg border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors">
+                <Flame className="w-4 h-4" />
+                <span>{calculateStreak(tasks)}</span>
+                <span className="hidden sm:inline"> day{tasks.length !== 1 ? 's' : ''}</span>
+              </button>
+              <div className="absolute z-20 hidden group-hover:block w-48 p-2 mt-1 text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700">
+                <TaskStreakTracker tasks={tasks} />
+              </div>
+            </div>
           </div>
           <div className="relative" ref={dropdownRef}>
             <button
@@ -342,10 +378,6 @@ export default function TasksPage() {
         </div>
       </div>
 
-      {/* Streak Tracker */}
-      <div className="relative z-10">
-        <TaskStreakTracker tasks={tasks} />
-      </div>
 
 
       {/* Simplified Category Pills */}
