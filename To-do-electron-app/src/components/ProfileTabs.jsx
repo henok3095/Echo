@@ -1,7 +1,7 @@
 import React from 'react';
 import { formatRating } from '../utils/ratings.js';
 import RecommendedUsers from './RecommendedUsers.jsx';
-import { UserCheck, Globe, Twitter, Instagram, Github, Send } from 'lucide-react';
+import { UserCheck, Globe, Twitter, Instagram, Github, Send, List as ListIcon, Lock, Users } from 'lucide-react';
 
 export default function ProfileTabs({
   activeTab,
@@ -259,8 +259,98 @@ export default function ProfileTabs({
       </div>
     );
   };
+
+  const ListsSection = ({ userId, canView }) => {
+    const [lists, setLists] = React.useState([]);
+    const [loading, setLoading] = React.useState(false);
+    const [error, setError] = React.useState(null);
+
+    React.useEffect(() => {
+      const run = async () => {
+        if (!userId || !canView) return;
+        setLoading(true);
+        setError(null);
+        try {
+          const { useMediaStore } = await import('../store/index.jsx');
+          const fetchedLists = await useMediaStore.getState().fetchLists();
+          // Filter lists by visibility - show public lists for other users, all lists for own profile
+          const visibleLists = isViewingOwnProfile 
+            ? fetchedLists 
+            : fetchedLists.filter(list => list.visibility === 'public');
+          setLists(visibleLists || []);
+        } catch (e) {
+          setError(e.message || 'Failed to load lists');
+        } finally {
+          setLoading(false);
+        }
+      };
+      run();
+    }, [userId, canView]);
+
+    if (!canView) {
+      return <div className="text-sm text-gray-500 dark:text-gray-400">Lists are private.</div>;
+    }
+    if (loading) return <div className="text-sm text-gray-500 dark:text-gray-400">Loading lists…</div>;
+    if (error) return <div className="text-sm text-red-600 dark:text-red-400">{error}</div>;
+    if (!lists.length) return <div className="text-sm text-gray-500 dark:text-gray-400">No lists yet.</div>;
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {lists.map(list => (
+          <div key={list.id} className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-gray-900 dark:text-white truncate">{list.name}</h4>
+                {list.description && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{list.description}</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 ml-3">
+                {list.visibility === 'private' ? (
+                  <Lock className="w-4 h-4 text-gray-400" />
+                ) : (
+                  <Users className="w-4 h-4 text-green-500" />
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-4">
+                <span className="text-gray-600 dark:text-gray-400">
+                  {list.items?.length || 0} items
+                </span>
+                <span className="px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                  {list.category || 'general'}
+                </span>
+              </div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {list.created_at ? new Date(list.created_at).toLocaleDateString() : ''}
+              </span>
+            </div>
+
+            {list.tags && list.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {list.tags.slice(0, 3).map(tag => (
+                  <span key={tag} className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                    {tag}
+                  </span>
+                ))}
+                {list.tags.length > 3 && (
+                  <span className="px-2 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+                    +{list.tags.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const tabs = [
     { id: 'overview', label: 'About' },
+    { id: 'lists', label: 'Lists', icon: ListIcon },
     { id: 'top_rated', label: 'Top Rated' },
     { id: 'favorites', label: 'Favorites' },
     { id: 'friends', label: 'Friends', icon: UserCheck },
@@ -373,6 +463,14 @@ export default function ProfileTabs({
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Top Rated</h3>
             <TopRatedSection userId={displayProfile?.id || user?.id} canView={canViewMedia} />
+          </div>
+        );
+
+      case 'lists':
+        return (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Lists</h3>
+            <ListsSection userId={displayProfile?.id || user?.id} canView={canViewMedia} />
           </div>
         );
 

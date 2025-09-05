@@ -16,6 +16,8 @@ import BooksPage from "./pages/BooksPage";
 import CalendarPage from "./pages/CalendarPage";
 import SchoolPage from "./pages/SchoolPage";
 import LandingPage from "./pages/LandingPage";
+import ListsPage from "./pages/ListsPage";
+import ListDetailPage from "./pages/ListDetailPage";
 import AuthModal from "./components/AuthModal";
 import { supabase, db } from './api/supabase.js';
 import ProfilePage from "./pages/ProfilePage";
@@ -256,6 +258,7 @@ function AppLayout() {
       {/* Main content area */}
       <div className="flex flex-col flex-1 min-w-0">
         <Header
+          isSidebarOpen={sidebarOpen}
           onMenuClick={() => {
             if (window.innerWidth < 768) {
               setSidebarDrawer(true);
@@ -330,14 +333,16 @@ function AppLayout() {
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
              <Route path="/activities" element={<ActivitiesPage />} />
-             <Route path="/my-activities" element={<ActivitiesPage mode="mine" />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/movies" element={<MoviesPage />} />
             <Route path="/series" element={<SeriesPage />} />
             <Route path="/music" element={<MusicPage />} />
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/books" element={<BooksPage />} />
+            <Route path="/lists" element={<ListsPage />} />
+            <Route path="/lists/:listId" element={<ListDetailPage />} />
             <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/school" element={<SchoolPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/profile/:username" element={<ProfilePage />} />
             <Route path="/about" element={<AboutPage />} />

@@ -16,7 +16,8 @@ import {
   Sparkles,
   Activity,
   Sun,
-  Moon
+  Moon,
+  List
 } from "lucide-react";
 import { useTaskStore, useMediaStore, useJournalStore, useAuthStore } from '../store/index.jsx';
 import Card from "../components/Card";
@@ -235,7 +236,7 @@ const Badge = ({ children, color = "gray" }) => {
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { tasks } = useTaskStore();
-  const { mediaEntries } = useMediaStore();
+  const { mediaEntries, lists } = useMediaStore();
   const { journalEntries } = useJournalStore();
   
   const greeting = getTimeBasedGreeting();
@@ -279,6 +280,11 @@ export default function DashboardPage() {
     weekAgo.setDate(weekAgo.getDate() - 7);
     return new Date(entry.date) >= weekAgo;
   }).length;
+  
+  // List stats
+  const totalLists = lists.length;
+  const publicLists = lists.filter(l => l.visibility === 'public').length;
+  const totalListItems = lists.reduce((acc, list) => acc + (list.items?.length || 0), 0);
   
   const taskCompletionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
   const mediaCompletionRate = totalMedia > 0 ? (watchedMedia / totalMedia) * 100 : 0;
@@ -391,7 +397,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard 
             title="Total Tasks" 
             value={totalTasks}
@@ -408,6 +414,14 @@ export default function DashboardPage() {
             color="purple"
             icon={Film}
             progress={mediaCompletionRate}
+          />
+
+          <StatCard 
+            title="My Lists" 
+            value={totalLists}
+            subtitle={`${totalListItems} total items`}
+            color="orange"
+            icon={List}
           />
 
           <StatCard 
@@ -455,10 +469,10 @@ export default function DashboardPage() {
               onClick={() => window.location.href = '/journal'}
             />
             <QuickActionButton 
-              icon={Sparkles} 
-              label="Add Memory" 
+              icon={List} 
+              label="Create List" 
               color="orange"
-              onClick={() => window.location.href = '/memories'}
+              onClick={() => window.location.href = '/lists'}
             />
           </div>
         </Card>
@@ -573,8 +587,6 @@ export default function DashboardPage() {
             </div>
           </Card>
         </div>
-
-        
       </div>
     </div>
   );

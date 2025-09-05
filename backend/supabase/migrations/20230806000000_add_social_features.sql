@@ -1,6 +1,6 @@
 -- Add profile visibility settings to profiles table
 ALTER TABLE profiles
-ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT false,
+ADD COLUMN IF NOT EXISTS is_public BOOLEAN DEFAULT true,
 ADD COLUMN IF NOT EXISTS show_activity BOOLEAN DEFAULT true,
 ADD COLUMN IF NOT EXISTS show_media BOOLEAN DEFAULT true,
 ADD COLUMN IF NOT EXISTS show_tasks BOOLEAN DEFAULT true,

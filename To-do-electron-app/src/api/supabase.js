@@ -658,6 +658,19 @@ export const db = {
     return { error };
   },
 
+  // Friends system (mutual follows)
+  getFriends: async (userId) => {
+    if (!supabase) {
+      return { data: [], error: { message: 'Supabase not configured' } }
+    }
+    
+    console.log('getFriends called with userId:', userId);
+    // Get users who follow each other (mutual follows = friends)
+    const { data, error } = await supabase.rpc('get_mutual_friends', { user_id: userId });
+    console.log('RPC get_mutual_friends result:', { data, error });
+    return { data: data || [], error };
+  },
+
 };
 
 export const storage = {

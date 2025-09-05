@@ -1,10 +1,13 @@
-import React from 'react';
-import { Heart, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { Heart, Star, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useMediaStore } from '../store/index.jsx';
 import { formatRating } from '../utils/ratings';
+import AddToListModal from './AddToListModal';
 
 export default function MediaActions({ media, className = '', showRating = false }) {
+  const [showAddToList, setShowAddToList] = useState(false);
+
   const toggleFav = async (e) => {
     e && e.stopPropagation();
     try {
@@ -34,6 +37,24 @@ export default function MediaActions({ media, className = '', showRating = false
       >
         <Heart className={`w-6 h-6 transition-all duration-200 ${media.favorite ? 'fill-current' : ''}`} fill={media.favorite ? 'currentColor' : 'none'} />
       </button>
+
+      {/* Add to List modal trigger */}
+      <button
+        onClick={(e) => { e.stopPropagation(); setShowAddToList(true); }}
+        onTouchStart={(e) => { e.stopPropagation(); setShowAddToList(true); }}
+        aria-label="Add to list"
+        title="Add to list"
+        className="p-2 rounded-full bg-white/90 dark:bg-gray-900/80 shadow border border-gray-200 dark:border-gray-700 text-gray-600 hover:text-gray-900"
+      >
+        <Plus className="w-5 h-5" />
+      </button>
+
+      {/* Modal */}
+      <AddToListModal
+        isOpen={showAddToList}
+        onClose={() => setShowAddToList(false)}
+        media={media}
+      />
     </div>
   );
 }

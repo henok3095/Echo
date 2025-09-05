@@ -1,5 +1,5 @@
 import React from "react";
-import { LayoutDashboard, CheckSquare, Film, BookOpen, Lightbulb, Calendar, User, TrendingUp, Music, Info, PenTool } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Film, BookOpen, Lightbulb, Calendar, User, TrendingUp, Music, Info, PenTool, List } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Logo from "./Logo.jsx";
 
@@ -8,10 +8,10 @@ const ROUTES = [
   "/activities",
   "/tasks",
   "/movies",
-  "/music",
-  "/journal",
   "/books",
-  "/calendar",
+  "/music",
+  "/lists",
+  "/journal",
   "/profile",
   "/about",
 ];
@@ -21,10 +21,10 @@ const ICONS = [
   <TrendingUp className="w-5 h-5" key="activities" />,
   <CheckSquare className="w-5 h-5" key="tasks" />,
   <Film className="w-5 h-5" key="movies" />,
-  <Music className="w-5 h-5" key="music" />,
-  <PenTool className="w-5 h-5" key="journal" />,
   <BookOpen className="w-5 h-5" key="books" />,
-  <Calendar className="w-5 h-5" key="calendar" />,
+  <Music className="w-5 h-5" key="music" />,
+  <List className="w-5 h-5" key="lists" />,
+  <PenTool className="w-5 h-5" key="journal" />,
   <User className="w-5 h-5" key="profile" />,
   <Info className="w-5 h-5" key="about" />,
 ];
@@ -33,11 +33,11 @@ const LABELS = [
   "Dashboard",
   "Activities",
   "Tasks",
-  "Movies",
-  "Music",
-  "Journal",
+  "Movies & Series",
   "Books",
-  "Calendar",
+  "Music",
+  "Lists",
+  "Journal",
   "Profile",
   "About",
 ];
@@ -47,10 +47,10 @@ const COLORS = [
   "green",
   "purple",
   "pink",
-  "orange",
-  "indigo",
   "teal",
-  "cyan",
+  "orange",
+  "amber",
+  "indigo",
   "teal",
   "purple",
 ];

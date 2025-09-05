@@ -303,6 +303,33 @@ export const useAuthStore = create(
           console.error('Error toggling follow:', error);
           throw error;
         }
+      },
+
+      // Friends system (mutual follows)
+      fetchFriends: async () => {
+        const { user } = get();
+        if (!user) return [];
+        
+        set({ isLoading: true, error: null });
+        try {
+          // Try RPC first, fallback to alternative implementation
+          let { data, error } = await db.getFriends(user.id);
+          
+          if (error || !data) {
+            // Fallback to alternative implementation
+            const result = await db.getFriendsAlternative(user.id);
+            data = result.data;
+            error = result.error;
+          }
+          
+          if (error) throw error;
+          set({ isLoading: false });
+          return data || [];
+        } catch (error) {
+          set({ error: error.message, isLoading: false });
+          console.error('Error fetching friends:', error);
+          return [];
+        }
       }
     }),
     {
@@ -435,12 +462,163 @@ export const useMediaStore = create(
   persist(
     (set, get) => ({
       mediaEntries: [],
+  lists: [],
       isLoading: false,
       error: null,
 
       setMediaEntries: (mediaEntries) => set({ mediaEntries }),
+      setLists: (lists) => set({ lists }),
       setLoading: (isLoading) => set({ isLoading }),
       setError: (error) => set({ error }),
+
+      // Enhanced lists feature (persisted via zustand persist)
+      // Each list: { id, name, description, visibility: 'private'|'public', items: [mediaId,...], created_at, category, tags: [] }
+      fetchLists: async () => {
+        const { lists } = get();
+        // currently stored in local state (persisted). In future, can fetch from DB.
+        return lists || [];
+      },
+
+      createList: async ({ name, description = '', visibility = 'private', category = 'general', tags = [], collaborators = [] }) => {
+        const { lists } = get();
+        const { user } = useAuthStore.getState();
+        const id = `list_${Date.now()}`;
+        const newList = { 
+          id, 
+          name: name || 'Untitled', 
+          description, 
+          visibility, 
+          category,
+          tags: Array.isArray(tags) ? tags : [],
+          collaborators: Array.isArray(collaborators) ? collaborators : [],
+          owner_id: user?.id || null,
+          items: [], 
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        const newLists = [newList, ...(lists || [])];
+        set({ lists: newLists });
+        return newList;
+      },
+
+      updateList: async (id, updates) => {
+        const { lists } = get();
+        const newLists = (lists || []).map(l => l.id === id ? { ...l, ...updates, updated_at: new Date().toISOString() } : l);
+        set({ lists: newLists });
+        return newLists.find(l => l.id === id);
+      },
+
+      // Get lists that contain a specific media item
+      getListsForMedia: (mediaId) => {
+        const { lists } = get();
+        return (lists || []).filter(list => list.items?.includes(mediaId));
+      },
+
+      // Bulk operations
+      addMultipleToList: async (listId, mediaIds) => {
+        const { lists } = get();
+        const list = (lists || []).find(l => l.id === listId);
+        if (!list) throw new Error('List not found');
+        
+        const newItems = [...new Set([...(list.items || []), ...mediaIds])];
+        const updated = { ...list, items: newItems, updated_at: new Date().toISOString() };
+        const newLists = (lists || []).map(l => l.id === listId ? updated : l);
+        set({ lists: newLists });
+        return updated;
+      },
+
+      // Duplicate a list
+      duplicateList: async (listId, newName) => {
+        const { lists } = get();
+        const originalList = (lists || []).find(l => l.id === listId);
+        if (!originalList) throw new Error('List not found');
+        
+        const id = `list_${Date.now()}`;
+        const duplicatedList = {
+          ...originalList,
+          id,
+          name: newName || `${originalList.name} (Copy)`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        const newLists = [duplicatedList, ...(lists || [])];
+        set({ lists: newLists });
+        return duplicatedList;
+      },
+
+      deleteList: async (id) => {
+        const { lists } = get();
+        const newLists = (lists || []).filter(l => l.id !== id);
+        set({ lists: newLists });
+        return true;
+      },
+
+      addToList: async (listId, media) => {
+        const { lists, mediaEntries } = get();
+        const list = (lists || []).find(l => l.id === listId);
+        if (!list) throw new Error('List not found');
+        const exists = (list.items || []).includes(media.id);
+        if (exists) return list;
+        const updated = { ...list, items: [media.id, ...(list.items || [])] };
+        const newLists = (lists || []).map(l => l.id === listId ? updated : l);
+        set({ lists: newLists });
+        return updated;
+      },
+
+      removeFromList: async (listId, mediaId) => {
+        const { lists } = get();
+        const list = (lists || []).find(l => l.id === listId);
+        if (!list) throw new Error('List not found');
+        const updated = { ...list, items: (list.items || []).filter(i => i !== mediaId) };
+        const newLists = (lists || []).map(l => l.id === listId ? updated : l);
+        set({ lists: newLists });
+        return updated;
+      },
+
+      // Add collaborator to list
+      addCollaborator: async (listId, collaboratorId) => {
+        const { lists } = get();
+        const list = (lists || []).find(l => l.id === listId);
+        if (!list) throw new Error('List not found');
+        
+        const collaborators = list.collaborators || [];
+        if (collaborators.includes(collaboratorId)) return list;
+        
+        const updated = { 
+          ...list, 
+          collaborators: [...collaborators, collaboratorId],
+          updated_at: new Date().toISOString()
+        };
+        const newLists = (lists || []).map(l => l.id === listId ? updated : l);
+        set({ lists: newLists });
+        return updated;
+      },
+
+      // Remove collaborator from list
+      removeCollaborator: async (listId, collaboratorId) => {
+        const { lists } = get();
+        const list = (lists || []).find(l => l.id === listId);
+        if (!list) throw new Error('List not found');
+        
+        const updated = { 
+          ...list, 
+          collaborators: (list.collaborators || []).filter(id => id !== collaboratorId),
+          updated_at: new Date().toISOString()
+        };
+        const newLists = (lists || []).map(l => l.id === listId ? updated : l);
+        set({ lists: newLists });
+        return updated;
+      },
+
+      // Check if user can edit list (owner or collaborator)
+      canEditList: (listId, userId) => {
+        const { lists } = get();
+        const list = (lists || []).find(l => l.id === listId);
+        if (!list) return false;
+        
+        return list.owner_id === userId || (list.collaborators || []).includes(userId);
+      },
 
       fetchMediaEntries: async (type = null) => {
         const { user } = useAuthStore.getState()

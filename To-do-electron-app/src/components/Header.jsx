@@ -1,8 +1,10 @@
 import React from "react";
-import { UserCircle, Menu, Sun, Moon, LogOut, Sparkles, Bell } from "lucide-react";
+import { UserCircle, Menu, X, Sun, Moon, LogOut, Sparkles, Bell, Calendar } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import Logo from "./Logo.jsx";
 
-export default function Header({ username = "User", onMenuClick, onToggleTheme, onToggleNotifications, notificationsCount = 0, onSignOut, theme = "dark" }) {
+export default function Header({ username = "User", isSidebarOpen = true, onMenuClick, onToggleTheme, onToggleNotifications, notificationsCount = 0, onSignOut, theme = "dark" }) {
+  const navigate = useNavigate();
   return (
     <header className="h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 px-6 flex items-center justify-between relative overflow-hidden">
       {/* Subtle gradient overlay */}
@@ -10,11 +12,15 @@ export default function Header({ username = "User", onMenuClick, onToggleTheme, 
       
       <div className="flex items-center gap-4 relative z-10">
         <button
-          className="p-2.5 rounded-xl hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-all duration-200 hover:scale-105 active:scale-95 group"
+          className="p-3 rounded-xl hover:bg-gray-100/80 dark:hover:bg-gray-800/80 transition-all duration-200 hover:scale-105 active:scale-95 group"
           onClick={onMenuClick}
-          aria-label="Toggle sidebar"
+          aria-label={isSidebarOpen ? 'Close sidebar' : 'Open sidebar'}
         >
-          <Menu className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-800 dark:group-hover:text-gray-200 transition-colors" />
+          {isSidebarOpen ? (
+            <X className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-colors" />
+          ) : (
+            <Menu className="w-6 h-6 text-gray-600 dark:text-gray-400 transition-colors" />
+          )}
         </button>
         <div className="hidden sm:block">
           <div className="flex items-center gap-2 mb-1">
@@ -43,6 +49,18 @@ export default function Header({ username = "User", onMenuClick, onToggleTheme, 
           </div>
         </button>
 
+        {/* Calendar Button */}
+        <button
+          className="relative p-2.5 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all duration-300 hover:scale-105 active:scale-95 group"
+          onClick={() => navigate('/calendar')}
+          aria-label="Open calendar"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative z-10">
+            <Calendar className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+          </div>
+        </button>
+
         {/* Notifications Toggle */}
         <button
           className="relative p-2.5 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 hover:from-gray-200 hover:to-gray-300 dark:hover:from-gray-700 dark:hover:to-gray-600 transition-all duration-300 hover:scale-105 active:scale-95 group"
@@ -60,8 +78,13 @@ export default function Header({ username = "User", onMenuClick, onToggleTheme, 
           )}
         </button>
         
-        {/* Enhanced User Profile */}
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border border-gray-200/50 dark:border-gray-600/50 hover:shadow-lg transition-all duration-200 hover:scale-105">
+        {/* Enhanced User Profile (clickable) */}
+        <button
+          type="button"
+          onClick={() => navigate('/profile')}
+          aria-label="Open profile"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border border-gray-200/50 dark:border-gray-600/50 hover:shadow-lg transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        >
           <div className="relative">
             <UserCircle className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></div>
@@ -69,7 +92,7 @@ export default function Header({ username = "User", onMenuClick, onToggleTheme, 
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden md:block">
             {username.split('@')[0]}
           </span>
-        </div>
+        </button>
         
         {/* Enhanced Sign Out Button */}
         <button

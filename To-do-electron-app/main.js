@@ -19,7 +19,21 @@ function createWindow() {
 
   if (!app.isPackaged) {
     // Development: load Vite dev server
-    win.loadURL('http://localhost:5173'); // Or 5174 if that's the port Vite uses
+    win.loadURL('http://localhost:5173'); // Ensure this matches the Vite port
+
+    // Open DevTools in development to surface errors causing a black screen
+    win.webContents.openDevTools({ mode: 'detach' });
+
+    // Helpful diagnostics
+    win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+      console.error('[Electron] did-fail-load:', { errorCode, errorDescription, validatedURL });
+    });
+    win.webContents.on('crashed', () => {
+      console.error('[Electron] Renderer process crashed');
+    });
+    win.webContents.on('render-process-gone', (_event, details) => {
+      console.error('[Electron] render-process-gone:', details);
+    });
   } else {
     // Production: load built file
     win.loadFile(path.join(__dirname, 'dist', 'index.html'));

@@ -528,6 +528,49 @@ export const db = {
       .insert([activityData])
       .select()
     return { data, error }
+  },
+
+  // Friends system (mutual follows)
+  getFriends: async (userId) => {
+    if (!supabase) {
+      return { data: [], error: { message: 'Supabase not configured' } }
+    }
+    
+    console.log('getFriends called with userId:', userId);
+    // Get users who follow each other (mutual follows = friends)
+    const { data, error } = await supabase.rpc('get_mutual_friends', { user_id: userId });
+    console.log('RPC get_mutual_friends result:', { data, error });
+    return { data: data || [], error };
+  },
+
+  // Alternative implementation if RPC doesn't exist
+  getFriendsAlternative: async (userId) => {
+    if (!supabase) {
+      return { data: [], error: { message: 'Supabase not configured' } }
+    }
+    
+    // Get users I follow
+    const { data: following, error: followingError } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', userId);
+    
+    if (followingError) return { data: [], error: followingError };
+    
+    const followingIds = following.map(f => f.following_id);
+    if (followingIds.length === 0) return { data: [], error: null };
+    
+    // Get users who also follow me back (mutual follows)
+    const { data: mutualFollows, error: mutualError } = await supabase
+      .from('follows')
+      .select('follower_id, follower:profiles(*)')
+      .eq('following_id', userId)
+      .in('follower_id', followingIds);
+    
+    return { 
+      data: mutualFollows?.map(f => f.follower) || [], 
+      error: mutualError 
+    };
   }
 }
 

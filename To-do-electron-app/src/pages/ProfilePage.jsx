@@ -78,7 +78,7 @@ export default function ProfilePage() {
         username: '',
         bio: '',
         avatar_url: '',
-        is_public: false,
+        is_public: true,
         show_activity: true,
         show_media: true,
         show_music: true,
@@ -111,7 +111,7 @@ export default function ProfilePage() {
     username: '',
     bio: '',
     avatar_url: '',
-    is_public: false,
+    is_public: true,
     show_activity: true,
     show_media: true,
     show_music: true,
@@ -164,7 +164,7 @@ export default function ProfilePage() {
           username: profile?.username || '',
           bio: profile?.bio || '',
           avatar_url: profile?.avatar_url || '',
-          is_public: profile?.is_public || false,
+          is_public: profile?.is_public || true,
           show_activity: profile?.show_activity ?? true,
           show_media: profile?.show_media ?? true,
           show_music: profile?.show_music ?? true,
@@ -319,7 +319,7 @@ export default function ProfilePage() {
       username: profile?.username || '',
       bio: profile?.bio || '',
       avatar_url: profile?.avatar_url || '',
-      is_public: profile?.is_public || false,
+      is_public: profile?.is_public || true,
       show_activity: profile?.show_activity ?? true,
       show_media: profile?.show_media ?? true,
       show_music: profile?.show_music ?? true,
@@ -492,7 +492,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="min-h-screen w-full p-4 md:p-6 space-y-6">
       <ProfileHeader
         displayName={displayName}
         displayProfile={displayProfile}
